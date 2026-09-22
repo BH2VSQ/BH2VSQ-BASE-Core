@@ -7,7 +7,10 @@ using UdonSharpEditor;
 using UnityEditor;
 using UnityEditor.Events;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using VRC.SDKBase;
+using VRC.SDK3.Components;
 
 namespace BH2VSQ.Base.Editor
 {
@@ -31,6 +34,7 @@ namespace BH2VSQ.Base.Editor
             RectTransform rect = Rect(parent, name, x, y, width, height);
             Image image = rect.gameObject.AddComponent<Image>();
             image.color = color;
+            image.raycastTarget = false;
             return rect;
         }
 
@@ -38,7 +42,8 @@ namespace BH2VSQ.Base.Editor
         {
             RectTransform rect = Rect(parent, name, x, y, width, height);
             TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
-            text.text = value; text.fontSize = size; text.color = Color.white;
+            text.text = value; text.fontSize = size; text.color = new Color(.78f, .95f, 1f);
+            text.raycastTarget = false;
             text.alignment = TextAlignmentOptions.MidlineLeft;
             text.enableWordWrapping = true;
             TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(Root + "/Fonts/BH2VSQ_UI.asset");
@@ -57,6 +62,8 @@ namespace BH2VSQ.Base.Editor
         {
             RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.18f, .22f, .27f, .95f));
             TMP_InputField input = rect.gameObject.AddComponent<TMP_InputField>();
+            rect.GetComponent<Image>().raycastTarget = true;
+            input.navigation = new Navigation { mode = Navigation.Mode.None };
             RectTransform viewport = Rect(rect, "Text Area", 12, -5, width - 24, height - 10);
             viewport.gameObject.AddComponent<RectMask2D>();
             TMP_Text text = Text(viewport, "Text", "", 0, 0, width - 24, height - 10, 21);
@@ -70,11 +77,13 @@ namespace BH2VSQ.Base.Editor
 
         private static UIButtonAction Button(Transform parent, string name, string label, int action, int value, float x, float y, float width, float height, LocalizationManager localization = null, int localizationKey = -1)
         {
-            RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.14f, .32f, .45f, .98f));
+            RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.02f, .35f, .62f, .74f));
             Button button = rect.gameObject.AddComponent<Button>();
+            rect.GetComponent<Image>().raycastTarget = true;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
             ColorBlock colors = button.colors;
-            colors.highlightedColor = new Color(.25f, .55f, .7f);
-            colors.pressedColor = new Color(.08f, .2f, .3f);
+            colors.highlightedColor = new Color(.08f, .7f, .92f, .95f);
+            colors.pressedColor = new Color(.02f, .48f, .72f, .85f);
             button.colors = colors;
             TMP_Text text = Text(rect, "Label", label, 10, -3, width - 20, height - 6, 19);
             text.alignment = TextAlignmentOptions.Center;
@@ -93,13 +102,19 @@ namespace BH2VSQ.Base.Editor
         private static Canvas Canvas(Transform parent, string name, Vector3 offset, int order)
         {
             RectTransform rect = Rect(parent, name, 0, 0, 900, 650);
+            rect.pivot = new Vector2(.5f, .5f);
             rect.localScale = Vector3.one * .0015f;
+            rect.gameObject.layer = 0;
             Canvas canvas = rect.gameObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.overrideSorting = true;
             canvas.sortingOrder = order;
             rect.gameObject.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 50;
             rect.gameObject.AddComponent<GraphicRaycaster>();
+            rect.gameObject.AddComponent<VRCUiShape>();
+            BoxCollider collider = rect.gameObject.GetComponent<BoxCollider>();
+            if (collider == null) collider = rect.gameObject.AddComponent<BoxCollider>();
+            collider.size = new Vector3(900f, 650f, 1f);
             LocalCanvasFollower follower = rect.gameObject.AddUdonSharpComponent<LocalCanvasFollower>();
             follower.target = rect;
             follower.offset = offset;
@@ -112,11 +127,19 @@ namespace BH2VSQ.Base.Editor
             AreaPopulationManager population, AdminManager admin, FloorAdminManager floorAdmin, BroadcastManager broadcast,
             LocalizationManager localization)
         {
-            Canvas mainCanvas = Canvas(parent, "MainCanvas", new Vector3(0f, -.12f, 1.25f), 1);
-            RectTransform menuRoot = Panel(mainCanvas.transform, "TabMenu", 0, 0, 900, 650, new Color(.04f, .1f, .16f, .95f));
+            GameObject eventSystem = Group(parent, "EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<StandaloneInputModule>();
+            Canvas mainCanvas = Canvas(parent, "MainCanvas", new Vector3(-.5f, -.05f, 1.45f), 1);
+            world.menuCanvas = mainCanvas.gameObject;
+            world.menuFollower = mainCanvas.GetComponent<LocalCanvasFollower>();
+            world.menuCanvasGroup = mainCanvas.gameObject.AddComponent<CanvasGroup>();
+            world.menuCanvasGroup.alpha = world.menuOpacity;
+            RectTransform menuRoot = Panel(mainCanvas.transform, "TabMenu", 0, 0, 900, 650, new Color(.015f, .1f, .23f, .72f));
             TabMenuController menu = menuRoot.gameObject.AddUdonSharpComponent<TabMenuController>();
             menu.permission = permission; world.menu = menu;
             Text(menuRoot, "Header", "BH2VSQ BASE", 20, -10, 860, 40, 32);
+            Panel(menuRoot, "HologramAccent", 20, -98, 860, 2, new Color(.1f, .78f, 1f, .8f));
             Button(menuRoot, "PersonalTab", "Personal", 1, 0, 20, -55, 155, 38, localization, 0);
             Button(menuRoot, "TeleportTab", "Teleport", 2, 0, 190, -55, 155, 38, localization, 1);
             Button(menuRoot, "PlayersTab", "Players", 3, 0, 360, -55, 155, 38, localization, 2);
@@ -251,31 +274,40 @@ namespace BH2VSQ.Base.Editor
             menu.admin = adminRoot.gameObject;
             adminRoot.gameObject.SetActive(false);
 
-            Canvas notificationCanvas = Canvas(parent, "NotificationLayer", new Vector3(0f, .28f, 1.1f), 10);
-            BroadcastNotificationManager notification = notificationCanvas.gameObject.AddUdonSharpComponent<BroadcastNotificationManager>();
+            GameObject notificationLayer = Group(parent, "NotificationLayer");
+            BroadcastNotificationManager notification = notificationLayer.AddUdonSharpComponent<BroadcastNotificationManager>();
+            Canvas notificationCanvas = Canvas(notificationLayer.transform, "BroadcastCanvas", new Vector3(0f, .28f, 1.1f), 10);
+            BoxCollider notificationCollider = notificationCanvas.GetComponent<BoxCollider>();
+            notificationCollider.center = new Vector3(0f, 237.5f, 0f);
+            notificationCollider.size = new Vector3(800f, 155f, 1f);
             RectTransform notificationRoot = Panel(notificationCanvas.transform, "BroadcastNotification", 50, -10, 800, 155, new Color(.26f, .12f, .08f, .97f));
-            notification.root = notificationRoot.gameObject;
+            notification.root = notificationCanvas.gameObject;
             notification.title = Text(notificationRoot, "Title", "NOTICE", 15, -8, 560, 32, 25, localization, BaseText.Notice);
             notification.messageText = Text(notificationRoot, "Message", "", 15, -43, 750, 68, 22);
             notification.senderText = Text(notificationRoot, "Sender", "", 15, -116, 590, 30, 17);
             Button(notificationRoot, "Close", "Close", 42, 0, 650, -112, 130, 34, localization, 6);
-            notification.audioSource = notificationCanvas.gameObject.AddComponent<AudioSource>();
+            notification.audioSource = notificationLayer.AddComponent<AudioSource>();
             notification.audioSource.playOnAwake = false;
             notification.data = data; notification.localization = localization;
             notification.normalSound = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/Broadcast_Normal.wav");
             notification.importantSound = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/Broadcast_Important.wav");
             notification.emergencySound = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/Broadcast_Emergency.wav");
             broadcast.notification = notification;
-            RequestPanel requestPanel = notificationCanvas.gameObject.AddUdonSharpComponent<RequestPanel>();
-            RectTransform requestRoot = Panel(notificationCanvas.transform, "TeleportRequest", 50, -180, 800, 125, new Color(.07f, .24f, .3f, .98f));
-            requestPanel.root = requestRoot.gameObject;
+            RequestPanel requestPanel = notificationLayer.AddUdonSharpComponent<RequestPanel>();
+            Canvas requestCanvas = Canvas(notificationLayer.transform, "RequestCanvas", new Vector3(0f, .05f, 1f), 11);
+            BoxCollider requestCollider = requestCanvas.GetComponent<BoxCollider>();
+            requestCollider.center = new Vector3(0f, 82.5f, 0f);
+            requestCollider.size = new Vector3(800f, 125f, 1f);
+            RectTransform requestRoot = Panel(requestCanvas.transform, "TeleportRequest", 50, -180, 800, 125, new Color(.07f, .24f, .3f, .98f));
+            requestPanel.root = requestCanvas.gameObject;
             requestPanel.message = Text(requestRoot, "RequestText", "Teleport request", 15, -10, 570, 42, 20, localization, BaseText.TeleportRequest);
             requestPanel.countdown = Text(requestRoot, "Countdown", "15s", 680, -10, 100, 42, 20);
             requestPanel.requests = requests; requestPanel.localization = localization;
             Button(requestRoot, "Accept", "Accept", 40, 0, 490, -67, 135, 38, localization, 7);
             Button(requestRoot, "Reject", "Reject", 41, 0, 645, -67, 135, 38, localization, 8);
             requests.panel = requestPanel;
-            requestRoot.gameObject.SetActive(false);
+            notificationCanvas.gameObject.SetActive(false);
+            requestCanvas.gameObject.SetActive(false);
 
             foreach (UIButtonAction action in parent.GetComponentsInChildren<UIButtonAction>(true))
             {
@@ -284,6 +316,7 @@ namespace BH2VSQ.Base.Editor
                 action.requestPanel = requestPanel; action.notification = notification;
                 action.admin = adminPanel; action.broadcast = broadcastPanel; action.data = data;
             }
+            mainCanvas.gameObject.SetActive(false);
         }
 
         private static void CreateComponentPrefabs(GameObject core)
@@ -300,8 +333,8 @@ namespace BH2VSQ.Base.Editor
             SavePart(core, "UI/MainCanvas/TabMenu/AdminPanel/FloorAdmin", ui + "BH2VSQ_FloorAdmin.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/AdminPanel/BroadcastPanel", ui + "BH2VSQ_BroadcastPanel.prefab");
             SavePart(core, "UI/NotificationLayer", ui + "BH2VSQ_BroadcastNotificationManager.prefab");
-            SavePart(core, "UI/NotificationLayer/BroadcastNotification", ui + "BH2VSQ_BroadcastNotification.prefab");
-            SavePart(core, "UI/NotificationLayer/TeleportRequest", ui + "BH2VSQ_TeleportRequest.prefab");
+            SavePart(core, "UI/NotificationLayer/BroadcastCanvas/BroadcastNotification", ui + "BH2VSQ_BroadcastNotification.prefab");
+            SavePart(core, "UI/NotificationLayer/RequestCanvas/TeleportRequest", ui + "BH2VSQ_TeleportRequest.prefab");
             SavePart(core, "Floor/FloorManager", Root + "/Prefabs/Floor/BH2VSQ_FloorController.prefab");
             SavePart(core, "Floor/AreaManager", Root + "/Prefabs/Floor/BH2VSQ_AreaController.prefab");
             SavePart(core, "Teleport/Point_1F_Living", Root + "/Prefabs/Teleport/BH2VSQ_TeleportPoint.prefab");

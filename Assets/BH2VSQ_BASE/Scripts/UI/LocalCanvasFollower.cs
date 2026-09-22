@@ -10,7 +10,9 @@ namespace BH2VSQ.Base
         public Vector3 offset = new Vector3(0f, -.08f, 1.15f);
         public bool followRotation = true;
 
-        private void LateUpdate()
+        private void LateUpdate() { Place(); }
+
+        public void Place()
         {
             VRCPlayerApi player = Networking.LocalPlayer;
             if (!Utilities.IsValid(player) || target == null) return;

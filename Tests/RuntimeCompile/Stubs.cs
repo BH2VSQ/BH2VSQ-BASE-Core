@@ -12,7 +12,10 @@ namespace UnityEngine
     }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { }
-    public class GameObject : Object { public void SetActive(bool value) { } }
+    public class CanvasGroup : Behaviour { public float alpha; }
+    public class GameObject : Object { public bool activeSelf; public void SetActive(bool value) { activeSelf = value; } }
+    public enum KeyCode { Tab }
+    public static class Input { public static bool GetKeyDown(KeyCode key) => false; }
     public class Transform : Component
     {
         public Vector3 position;
@@ -46,6 +49,7 @@ namespace UnityEngine
     public class ScriptableObject : Object { }
     public class CreateAssetMenuAttribute : Attribute { public string menuName; }
     public class MinAttribute : Attribute { public MinAttribute(float value) { } }
+    public class RangeAttribute : Attribute { public RangeAttribute(float min, float max) { } }
     public class SerializeField : Attribute { }
 }
 

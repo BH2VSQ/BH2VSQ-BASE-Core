@@ -3,6 +3,10 @@ using System.Text;
 using BH2VSQ.Base;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using VRC.SDKBase;
+using VRC.SDK3.Components;
 
 namespace BH2VSQ.Base.Editor
 {
@@ -96,6 +100,22 @@ namespace BH2VSQ.Base.Editor
             if (localization == null || localization.english == null || localization.chinese == null || localization.english.Length != BaseText.EntryCount || localization.chinese.Length != BaseText.EntryCount)
                 errors.Add("中英文翻译表长度不正确，请重新生成默认数据与预制件。");
             if (menu == null || menu.personal == null || menu.teleport == null || menu.players == null || menu.admin == null) errors.Add("主菜单结构不完整。");
+            if (world != null && (world.menuCanvas == null || world.menuFollower == null || world.menuCanvasGroup == null || world.menuCanvas.GetComponent<Canvas>() == null))
+                errors.Add("Tab 菜单画布或头部定位组件未连接。");
+            foreach (Canvas canvas in root.GetComponentsInChildren<Canvas>(true))
+            {
+                if (canvas.GetComponent<VRCUiShape>() == null || canvas.GetComponent<BoxCollider>() == null || canvas.GetComponent<GraphicRaycaster>() == null)
+                    errors.Add("交互画布缺少 VRC_UIShape、BoxCollider 或 GraphicRaycaster：" + canvas.name);
+                if (canvas.gameObject.layer == 5) errors.Add("交互画布不能使用 UI 图层：" + canvas.name);
+            }
+            foreach (UIButtonAction action in root.GetComponentsInChildren<UIButtonAction>(true))
+            {
+                Button button = action.GetComponent<Button>();
+                if (button == null || button.onClick.GetPersistentEventCount() == 0 || button.onClick.GetPersistentTarget(0) == null || button.onClick.GetPersistentMethodName(0) != "SendCustomEvent")
+                    errors.Add("按钮未连接到 Udon Click 事件：" + action.name);
+            }
+            if (!EditorUtility.IsPersistent(root) && UnityEngine.Object.FindObjectOfType<EventSystem>() == null)
+                errors.Add("场景缺少 EventSystem，UI 按钮无法交互。");
             if (panel == null || panel.locationObjects == null || panel.locationActions == null || panel.locationLabels == null || panel.locationObjects.Length == 0 || panel.locationObjects.Length != panel.locationActions.Length || panel.locationObjects.Length != panel.locationLabels.Length)
                 errors.Add("地点菜单按钮池不完整。");
             if (admin == null || admin.floorObjects == null || admin.floorActions == null || admin.floorLabels == null || admin.floorObjects.Length == 0 || admin.floorObjects.Length != admin.floorActions.Length || admin.floorObjects.Length != admin.floorLabels.Length)
