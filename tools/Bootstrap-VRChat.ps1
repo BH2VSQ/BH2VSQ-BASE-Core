@@ -1,7 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $project = Split-Path -Parent $PSScriptRoot
 $packages = Join-Path $project 'Packages'
-$cache = Join-Path $project 'Temp\VRChatPackages'
+$temp = Join-Path $project 'Temp'
+$cache = Join-Path $temp 'VRChatPackages'
 New-Item -ItemType Directory -Path $cache -Force | Out-Null
 
 $items = @(
