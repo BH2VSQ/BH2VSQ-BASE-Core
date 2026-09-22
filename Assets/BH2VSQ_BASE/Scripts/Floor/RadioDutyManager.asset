@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: RadioDutyManager
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 4773293906d1de544adf160af27c4f0a,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 4773293906d1de544adf160af27c4f0a, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: 69387d7b8c13ffc4e849fe559a73e48f, type: 3}

@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: FloorAdminManager
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 4f78f54a7997ef349a3795b5b5e1bde2,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 4f78f54a7997ef349a3795b5b5e1bde2, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: dbe945dc72ed315479b3a590b5116b5f, type: 3}

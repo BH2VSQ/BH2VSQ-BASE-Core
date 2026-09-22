@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: AreaManager
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 38d24e715d6de074eb5b2291119c8113,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 38d24e715d6de074eb5b2291119c8113, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: fe88599c4ad18cb4e95e7081f80dec4e, type: 3}

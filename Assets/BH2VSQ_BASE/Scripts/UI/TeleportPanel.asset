@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: TeleportPanel
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 89872ec9078a71f4fbb31f6adad0ac5d,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 89872ec9078a71f4fbb31f6adad0ac5d, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: c8abb2383a601dc4e9308115e1eb5885, type: 3}

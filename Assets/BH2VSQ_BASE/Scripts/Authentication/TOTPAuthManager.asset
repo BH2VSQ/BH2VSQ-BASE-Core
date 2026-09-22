@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: TOTPAuthManager
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: a9de3e53ab8e6ea4e9a0120216ad4d29,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: a9de3e53ab8e6ea4e9a0120216ad4d29, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: 177abc91fb63eb044ae7dacbbf04ba43, type: 3}
