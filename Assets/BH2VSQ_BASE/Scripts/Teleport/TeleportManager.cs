@@ -7,25 +7,47 @@ namespace BH2VSQ.Base
     public class TeleportManager : UdonSharpBehaviour
     {
         public AccessManager access;
+        public Transform pointRoot;
         public TeleportPoint[] points;
         public AccessResult lastResult;
 
-        public bool ToFloor(int floorId)
+        private void Start() { RefreshPoints(); }
+
+        public void RefreshPoints()
         {
-            lastResult = access.CheckFloorAccess(floorId);
-            if (lastResult != AccessResult.Allowed) return false;
-            for (int i = 0; i < points.Length; i++)
-                if (points[i] != null && points[i].floorId == floorId) return Move(points[i]);
-            return false;
+            if (pointRoot != null) points = pointRoot.GetComponentsInChildren<TeleportPoint>(true);
         }
 
-        public bool ToArea(int areaId)
+        public TeleportPoint ById(int locationId)
         {
-            lastResult = access.CheckAreaAccess(areaId);
-            if (lastResult != AccessResult.Allowed) return false;
+            if (points == null) RefreshPoints();
+            if (points == null) return null;
             for (int i = 0; i < points.Length; i++)
-                if (points[i] != null && points[i].areaId == areaId) return Move(points[i]);
-            return false;
+                if (points[i] != null && points[i].locationId == locationId) return points[i];
+            return null;
+        }
+
+        public TeleportPoint ByFloor(int floorId)
+        {
+            if (points == null) RefreshPoints();
+            if (points == null) return null;
+            for (int i = 0; i < points.Length; i++)
+                if (points[i] != null && points[i].floorId == floorId) return points[i];
+            return null;
+        }
+
+        public bool ToLocation(int locationId)
+        {
+            TeleportPoint point = ById(locationId);
+            lastResult = access == null ? AccessResult.InvalidArea : access.CheckPointAccess(point);
+            return lastResult == AccessResult.Allowed && Move(point);
+        }
+
+        public bool ToFloor(int floorId)
+        {
+            TeleportPoint point = ByFloor(floorId);
+            lastResult = access == null ? AccessResult.InvalidFloor : access.CheckPointAccess(point);
+            return lastResult == AccessResult.Allowed && Move(point);
         }
 
         public bool ToPlayer(int playerId)
@@ -39,12 +61,16 @@ namespace BH2VSQ.Base
 
         public void ToSafeFloor()
         {
-            if (!ToFloor(3) && Utilities.IsValid(Networking.LocalPlayer)) Networking.LocalPlayer.Respawn();
+            if (points == null) RefreshPoints();
+            if (points != null)
+                for (int i = 0; i < points.Length; i++)
+                    if (points[i] != null && points[i].isSafeFallback && Move(points[i])) return;
+            if (Utilities.IsValid(Networking.LocalPlayer)) Networking.LocalPlayer.Respawn();
         }
 
         private bool Move(TeleportPoint point)
         {
-            if (!Utilities.IsValid(Networking.LocalPlayer)) return false;
+            if (point == null || !Utilities.IsValid(Networking.LocalPlayer)) return false;
             Networking.LocalPlayer.TeleportTo(point.Position(), point.Rotation());
             return true;
         }

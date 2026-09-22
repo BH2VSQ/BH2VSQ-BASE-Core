@@ -7,6 +7,8 @@ namespace UnityEngine
     {
         public GameObject gameObject;
         public Transform transform;
+        public T GetComponentInParent<T>() where T : Component => null;
+        public T[] GetComponentsInChildren<T>(bool includeInactive) where T : Component => Array.Empty<T>();
     }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { }

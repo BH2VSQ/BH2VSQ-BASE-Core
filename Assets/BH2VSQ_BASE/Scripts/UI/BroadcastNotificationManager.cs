@@ -16,6 +16,7 @@ namespace BH2VSQ.Base
         public AudioClip importantSound;
         public AudioClip emergencySound;
         public PlayerDataManager data;
+        public LocalizationManager localization;
         public int normalSeconds = 8;
         public int importantSeconds = 20;
         private int[] queueIds = new int[16];
@@ -51,7 +52,7 @@ namespace BH2VSQ.Base
             int slot = head++ % 16;
             currentId = queueIds[slot]; currentPriority = queuePriorities[slot];
             if (root != null) root.SetActive(true);
-            if (title != null) title.text = currentPriority == 2 ? "EMERGENCY" : currentPriority == 1 ? "IMPORTANT" : "NOTICE";
+            if (title != null && localization != null) title.text = localization.Get(currentPriority == 2 ? BaseText.Emergency : currentPriority == 1 ? BaseText.Important : BaseText.Notice);
             if (messageText != null) messageText.text = queueMessages[slot];
             if (senderText != null) senderText.text = queueSenders[slot];
             float remaining = (queueExpires[slot] - now) / 10000000f;

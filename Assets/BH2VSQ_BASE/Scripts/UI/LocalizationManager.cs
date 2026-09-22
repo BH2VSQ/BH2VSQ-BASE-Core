@@ -6,13 +6,25 @@ namespace BH2VSQ.Base
     public class LocalizationManager : UdonSharpBehaviour
     {
         public PlayerDataManager data;
-        public string[] english = { "Personal", "Teleport", "Players", "Admin", "Login", "Send", "Close", "Accept", "Reject", "Refresh", "Broadcast", "Floor" };
-        public string[] chinese = { "个人", "传送", "玩家", "管理", "登录", "发送", "关闭", "接受", "拒绝", "刷新", "广播", "楼层" };
+        public string[] english;
+        public string[] chinese;
+
+        public int Language() { return data == null ? 0 : data.language; }
 
         public string Get(int key)
         {
-            string[] table = data != null && data.language == 1 ? chinese : english;
-            return key >= 0 && key < table.Length ? table[key] : "?";
+            string[] table = Language() == 1 ? chinese : english;
+            return table != null && key >= 0 && key < table.Length ? table[key] : "?";
+        }
+
+        public string RankName(BaseRank rank)
+        {
+            return Get(rank == BaseRank.Admin ? BaseText.Administrator : rank == BaseRank.Member ? BaseText.Member : BaseText.Visitor);
+        }
+
+        public string StateName(FloorState state)
+        {
+            return Get(state == FloorState.Maintenance ? BaseText.Maintenance : state == FloorState.Reserved ? BaseText.Reserved : BaseText.Open);
         }
     }
 

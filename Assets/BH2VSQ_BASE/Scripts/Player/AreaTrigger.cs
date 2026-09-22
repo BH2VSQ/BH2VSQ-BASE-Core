@@ -8,16 +8,26 @@ namespace BH2VSQ.Base
         public PlayerAreaTracker tracker;
         public AccessManager access;
         public TeleportManager teleport;
-        public int areaId = 4000;
+        public TeleportPoint point;
+        private void Start()
+        {
+            BaseWorldSystem world = GetComponentInParent<BaseWorldSystem>();
+            if (world == null) return;
+            if (tracker == null) tracker = world.tracker;
+            if (access == null) access = world.access;
+            if (teleport == null) teleport = world.teleport;
+            if (point == null) point = GetComponentInParent<TeleportPoint>();
+        }
         public override void OnPlayerTriggerEnter(VRCPlayerApi player)
         {
             if (!player.isLocal) return;
-            if (access != null && access.CheckAreaAccess(areaId) != AccessResult.Allowed)
+            if (point == null) return;
+            if (access != null && access.CheckPointAccess(point) != AccessResult.Allowed)
             {
                 if (teleport != null) teleport.ToSafeFloor();
                 return;
             }
-            if (tracker != null) tracker.EnterArea(areaId);
+            if (tracker != null) tracker.EnterArea(point.locationId);
         }
     }
 }

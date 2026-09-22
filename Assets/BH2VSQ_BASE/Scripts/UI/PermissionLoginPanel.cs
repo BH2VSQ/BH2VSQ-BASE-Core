@@ -11,11 +11,12 @@ namespace BH2VSQ.Base
         public GameObject loginRoot;
         public TOTPAuthManager auth;
         public TabMenuController menu;
+        public LocalizationManager localization;
 
         public void Submit()
         {
             bool success = auth != null && auth.Authenticate(codeInput.text);
-            if (feedback != null) feedback.text = success ? "Authenticated" : "Invalid code";
+            if (feedback != null && localization != null) feedback.text = localization.Get(success ? BaseText.Authenticated : BaseText.InvalidCode);
             if (success && loginRoot != null) loginRoot.SetActive(false);
             if (menu != null) menu.Refresh();
         }

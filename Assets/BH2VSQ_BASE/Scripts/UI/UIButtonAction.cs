@@ -21,14 +21,15 @@ namespace BH2VSQ.Base
         public void Click()
         {
             if (action == 1 && menu != null) menu.ShowPersonal();
-            else if (action == 2 && menu != null) menu.ShowTeleport();
+            else if (action == 2 && menu != null) { menu.ShowTeleport(); if (teleport != null) teleport.Refresh(); }
             else if (action == 3 && menu != null) { menu.ShowPlayers(); if (players != null) players.Refresh(); }
             else if (action == 4 && menu != null) { menu.ShowAdmin(); if (admin != null) admin.Refresh(); }
             else if (action == 10 && login != null) login.Submit();
-            else if (action == 20 && teleport != null) teleport.ToFloor(value);
-            else if (action == 21 && teleport != null) teleport.ToArea(value);
+            else if (action == 20 && teleport != null) teleport.ToLocation(value);
             else if (action == 22 && teleport != null) teleport.Confirm();
             else if (action == 23 && teleport != null) teleport.Cancel();
+            else if (action == 26 && teleport != null) teleport.PreviousPage();
+            else if (action == 27 && teleport != null) teleport.NextPage();
             else if (action == 30 && players != null) players.Refresh();
             else if (action == 31 && detail != null) detail.ShowPlayer(value);
             else if (action == 32 && detail != null && requests != null) requests.Send(detail.selectedPlayerId, value);
@@ -47,6 +48,10 @@ namespace BH2VSQ.Base
                 menu.ShowPlayers();
                 if (players != null) players.Refresh();
             }
+            else if (action == 66 && admin != null) admin.PreviousFloorPage();
+            else if (action == 67 && admin != null) admin.NextFloorPage();
+            else if (action == 68 && admin != null) admin.PreviousPopulationPage();
+            else if (action == 69 && admin != null) admin.NextPopulationPage();
             else if (action == 70 && data != null) { data.language = value; data.Save(); }
             else if (action == 71 && data != null) { data.teleportConfirm = !data.teleportConfirm; data.Save(); }
             else if (action == 72 && data != null) { data.notificationsEnabled = !data.notificationsEnabled; data.Save(); }

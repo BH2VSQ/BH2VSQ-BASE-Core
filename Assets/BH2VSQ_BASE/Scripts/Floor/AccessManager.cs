@@ -6,29 +6,30 @@ namespace BH2VSQ.Base
     public class AccessManager : UdonSharpBehaviour
     {
         public FloorManager floors;
-        public AreaManager areas;
+        public TeleportManager teleport;
         public PermissionManager permission;
 
-        public AccessResult CheckFloorAccess(int floorId)
+        public AccessResult CheckPointAccess(TeleportPoint point)
         {
             if (!Utilities.IsValid(Networking.LocalPlayer)) return AccessResult.InvalidPlayer;
-            if (floors == null || !floors.Valid(floorId)) return AccessResult.InvalidFloor;
-            if (permission == null || (int)permission.GetRank() < floors.requiredRanks[floorId]) return AccessResult.InsufficientRank;
+            if (point == null) return AccessResult.InvalidArea;
+            if (permission == null || permission.GetRank() < point.requiredRank) return AccessResult.InsufficientRank;
             if (permission.IsAdmin()) return AccessResult.Allowed;
-            FloorState state = floors.GetState(floorId);
+            FloorState state = floors == null ? FloorState.Maintenance : floors.GetState(point.floorId);
             if (state == FloorState.Reserved) return AccessResult.FloorReserved;
             if (state == FloorState.Maintenance) return AccessResult.FloorMaintenance;
             return AccessResult.Allowed;
         }
 
-        public AccessResult CheckAreaAccess(int areaId)
+        public AccessResult CheckFloorAccess(int floorId)
         {
-            if (areas == null) return AccessResult.InvalidArea;
-            int index = areas.IndexOf(areaId);
-            if (index < 0) return AccessResult.InvalidArea;
-            AccessResult floor = CheckFloorAccess(areas.floorIds[index]);
-            if (floor != AccessResult.Allowed) return floor;
-            return (int)permission.GetRank() >= areas.requiredRanks[index] ? AccessResult.Allowed : AccessResult.InsufficientRank;
+            if (teleport == null || teleport.ByFloor(floorId) == null) return AccessResult.InvalidFloor;
+            return CheckPointAccess(teleport.ByFloor(floorId));
+        }
+
+        public AccessResult CheckAreaAccess(int locationId)
+        {
+            return CheckPointAccess(teleport == null ? null : teleport.ById(locationId));
         }
     }
 }

@@ -18,12 +18,13 @@ namespace BH2VSQ.Base
         public TMP_Text[] rowTexts;
         public UIButtonAction[] rowActions;
         public UnityEngine.GameObject[] rowObjects;
+        public LocalizationManager localization;
 
         public void Refresh()
         {
             if (registry == null || output == null) return;
             registry.Refresh();
-            output.text = "Online: " + registry.count + "  /  Radio: " + (radio != null && radio.OnDuty() ? "On Duty" : "No Duty");
+            output.text = localization.Get(BaseText.Online) + ": " + registry.count + "  /  " + localization.Get(BaseText.Radio) + ": " + localization.Get(radio != null && radio.OnDuty() ? BaseText.OnDuty : BaseText.NoDuty);
             if (rowTexts == null || rowActions == null || rowObjects == null) return;
             for (int i = 0; i < rowObjects.Length; i++)
             {
@@ -33,12 +34,12 @@ namespace BH2VSQ.Base
                 VRCPlayerApi player = registry.players[i];
                 int areaId = tracker == null ? -1 : tracker.AreaForPlayer(player.playerId);
                 int areaIndex = areas == null ? -1 : areas.IndexOf(areaId);
-                string areaName = areaIndex < 0 ? "?" : areas.names[areaIndex];
-                int floorId = areaIndex < 0 ? -1 : areas.floorIds[areaIndex];
-                string floorName = floors != null && floors.Valid(floorId) ? floors.floorNames[floorId] : "?";
+                string areaName = areaIndex < 0 ? localization.Get(BaseText.Unknown) : areas.DisplayName(areaIndex, localization.Language());
+                int floorId = areaIndex < 0 ? BaseConstants.InvalidId : areas.FloorIdAt(areaIndex);
+                string floorName = floors != null && floors.Valid(floorId) ? floors.GetFloor(floorId, localization.Language()) : localization.Get(BaseText.Unknown);
                 int xp = PlayerData.GetInt(player, "bh2vsq.xp");
                 int level = 1 + (int)UnityEngine.Mathf.Sqrt(xp / 100f);
-                rowTexts[i].text = player.displayName + " | " + registry.RankForPlayer(player.playerId) + " | Lv." + level + "\n" + floorName + " / " + areaName + (areaId == BaseConstants.RadioAreaId ? " | On Duty" : "");
+                rowTexts[i].text = player.displayName + " | " + localization.RankName(registry.RankForPlayer(player.playerId)) + " | " + localization.Get(BaseText.Level) + level + "\n" + floorName + " / " + areaName + (areas != null && areas.IsRadioLocation(areaId) ? " | " + localization.Get(BaseText.OnDuty) : "");
                 rowActions[i].value = player.playerId;
             }
         }

@@ -3,8 +3,7 @@ namespace BH2VSQ.Base
     public static class BaseConstants
     {
         public const int MaxPlayers = 80;
-        public const int InvalidId = -1;
-        public const int RadioAreaId = 10000;
+        public const int InvalidId = int.MinValue;
         public const float XpInterval = 30f;
         public const float RequestTimeout = 15f;
     }

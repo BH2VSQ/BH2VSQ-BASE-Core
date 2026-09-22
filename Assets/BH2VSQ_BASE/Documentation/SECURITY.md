@@ -1,9 +1,7 @@
-# Security boundary
+# 安全边界
 
-This is a VRChat Udon world system. Its TOTP secrets are serialized into an uploaded world and can be extracted by a client. Udon behaviours, synchronized player rank/area state, and owner transfers are client controlled. A modified client can bypass local checks or forge a broadcast or floor change. TOTP here is a convenience and social access mechanism, not secure authentication.
+此系统运行于 VRChat Udon 世界。上传世界中的 TOTP 密钥可被客户端下载并提取；Udon 行为、同步等级与区域状态以及所有权转移均受客户端控制。修改过的客户端可能绕过本地检查，或伪造广播及楼层更改。TOTP 仅用于便利性的世界内分级，不能充当真实身份验证。
 
-Do not store real credentials, personal data, paid entitlements, or sensitive admin capabilities in this world. Do not reuse TOTP secrets from other services. Keep example/default secrets blank. Put per-world secrets only on a scene instance that is kept out of public source control; uploading the world still exposes them to clients.
+不要在世界里存储真实账号凭据、个人敏感数据、付费权益或高风险管理员能力。不要复用其他服务的 TOTP 密钥。示例数据保持密钥为空；世界专用密钥只能配置在不提交到公共仓库的场景实例上，但上传后仍会向客户端暴露。
 
-PlayerData is persistent and useful for experience/preferences, but it is not a trusted leaderboard source. The authoring project does not provide an external server or verified identities. Multi-client tests must include malicious or conflicting ownership assumptions if the world will be public.
-
-This repository is public-source friendly: no TOTP secret or VRChat login token should be committed. Before any public push, inspect `git diff --cached` and Unity scene/prefab changes for accidentally serialized secrets.
+持久化玩家经验和偏好可用于游戏功能，不能作为可信排行榜。此项目没有外部服务器或已验证身份。共享同步数组及单槽请求在多人同时写入时可能发生覆盖，应进行多客户端压力测试。公开推送前检查暂存差异、场景和预制体，确认未序列化任何密钥或 VRChat 登录令牌。

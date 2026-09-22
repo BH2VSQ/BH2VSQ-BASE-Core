@@ -16,6 +16,16 @@
 /Packages/com.vrchat.worlds/
 /unity-import.log
 /unity-build.log
+/Assets/TextMesh Pro/
+/Assets/TextMesh Pro.meta
+/Assets/SerializedUdonPrograms/
+/Assets/SerializedUdonPrograms.meta
+/Assets/UdonSharp/
+/Assets/UdonSharp.meta
+/.vsconfig
+/ProjectSettings/Packages/
+/ProjectSettings/SceneTemplateSettings.json
+/ProjectSettings/XRPackageSettings.asset
 
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data

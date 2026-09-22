@@ -19,7 +19,7 @@ namespace BH2VSQ.Base
             int area = areas.IndexOf(areaId);
             if (area < 0) return;
             localAreaId = areaId;
-            localFloorId = areas.floorIds[area];
+            localFloorId = areas.FloorIdAt(area);
             int id = Networking.LocalPlayer.playerId;
             int slot = -1;
             for (int i = 0; i < playerIds.Length; i++)

@@ -8,40 +8,99 @@ namespace BH2VSQ.Base
     {
         public TeleportManager teleport;
         public PlayerDataManager data;
+        public LocalizationManager localization;
         public TMP_Text feedback;
         public GameObject confirmRoot;
         public TMP_Text confirmText;
-        private int pendingId = -1;
-        private bool pendingArea;
-        public void ToFloor(int id)
+        public UIButtonAction[] locationActions;
+        public TMP_Text[] locationLabels;
+        public GameObject[] locationObjects;
+        public GameObject previousButton;
+        public GameObject nextButton;
+        public TMP_Text pageLabel;
+        private int page;
+        private int pendingId;
+        private bool hasPending;
+
+        public void Refresh()
         {
-            if (data != null && data.teleportConfirm) { Pending(id, false); return; }
-            bool ok = teleport != null && teleport.ToFloor(id);
-            if (feedback != null) feedback.text = ok ? "Teleporting" : "Access denied or point missing";
+            if (teleport == null || locationObjects == null) return;
+            teleport.RefreshPoints();
+            int visible = VisibleCount();
+            int size = locationObjects.Length;
+            if (size == 0) return;
+            int pages = (visible + size - 1) / size;
+            if (page >= pages) page = pages > 0 ? pages - 1 : 0;
+            for (int i = 0; i < size; i++)
+            {
+                TeleportPoint point = VisibleAt(page * size + i);
+                locationObjects[i].SetActive(point != null);
+                if (point == null) continue;
+                locationActions[i].value = point.locationId;
+                locationLabels[i].text = point.DisplayName(localization.Language());
+            }
+            if (previousButton != null) previousButton.SetActive(page > 0);
+            if (nextButton != null) nextButton.SetActive(page + 1 < pages);
+            if (pageLabel != null) pageLabel.text = localization.Get(BaseText.Page) + " " + (page + 1) + " / " + (pages > 0 ? pages : 1);
         }
-        public void ToArea(int id)
+
+        private int VisibleCount()
         {
-            if (data != null && data.teleportConfirm) { Pending(id, true); return; }
-            bool ok = teleport != null && teleport.ToArea(id);
-            if (feedback != null) feedback.text = ok ? "Teleporting" : "Access denied or point missing";
+            int count = 0;
+            if (teleport.points != null)
+                for (int i = 0; i < teleport.points.Length; i++)
+                    if (teleport.points[i] != null && teleport.points[i].tabVisible) count++;
+            return count;
         }
-        private void Pending(int id, bool area)
+
+        private TeleportPoint VisibleAt(int visibleIndex)
         {
-            pendingId = id; pendingArea = area;
+            int count = 0;
+            if (teleport.points != null)
+                for (int i = 0; i < teleport.points.Length; i++)
+                    if (teleport.points[i] != null && teleport.points[i].tabVisible)
+                    {
+                        if (count == visibleIndex) return teleport.points[i];
+                        count++;
+                    }
+            return null;
+        }
+
+        public void NextPage() { page++; Refresh(); }
+        public void PreviousPage() { if (page > 0) page--; Refresh(); }
+
+        public void ToLocation(int id)
+        {
+            if (data != null && data.teleportConfirm) { Pending(id); return; }
+            SetFeedback(teleport != null && teleport.ToLocation(id));
+        }
+
+        private void Pending(int id)
+        {
+            pendingId = id;
+            hasPending = true;
             if (confirmRoot != null) confirmRoot.SetActive(true);
-            if (confirmText != null) confirmText.text = "Teleport to " + (area ? "area " : "floor ") + id + "?";
+            TeleportPoint point = teleport == null ? null : teleport.ById(id);
+            if (confirmText != null && localization != null)
+                confirmText.text = localization.Get(BaseText.Teleport) + " " + (point == null ? id.ToString() : point.DisplayName(localization.Language())) + "?";
         }
+
         public void Confirm()
         {
-            if (pendingId < 0) return;
-            bool ok = teleport != null && (pendingArea ? teleport.ToArea(pendingId) : teleport.ToFloor(pendingId));
-            if (feedback != null) feedback.text = ok ? "Teleporting" : "Access denied or point missing";
+            if (!hasPending) return;
+            SetFeedback(teleport != null && teleport.ToLocation(pendingId));
             Cancel();
         }
+
         public void Cancel()
         {
-            pendingId = -1;
+            hasPending = false;
             if (confirmRoot != null) confirmRoot.SetActive(false);
+        }
+
+        private void SetFeedback(bool ok)
+        {
+            if (feedback != null && localization != null) feedback.text = localization.Get(ok ? BaseText.Teleporting : BaseText.AccessDenied);
         }
     }
 }

@@ -12,18 +12,20 @@ namespace BH2VSQ.Base
         public PlayerAreaTracker tracker;
         public FloorManager floors;
         public AreaManager areas;
+        public LocalizationManager localization;
 
         private void Start() { SendCustomEventDelayedSeconds("Refresh", 1f); }
         public void Refresh()
         {
             if (output != null && Utilities.IsValid(Networking.LocalPlayer))
             {
-                string floor = floors != null && floors.Valid(tracker.localFloorId) ? floors.floorNames[tracker.localFloorId] : "Unknown";
+                string floor = floors != null && floors.Valid(tracker.localFloorId) ? floors.GetFloor(tracker.localFloorId, localization.Language()) : localization.Get(BaseText.Unknown);
                 int areaIndex = areas != null ? areas.IndexOf(tracker.localAreaId) : -1;
-                string area = areaIndex >= 0 ? areas.names[areaIndex] : "Unknown";
-                output.text = Networking.LocalPlayer.displayName + "\n" + permission.GetRank() + "  Lv." + data.Level() +
-                    "\nXP: " + data.experience + "\nTime: " + (data.totalSeconds / 3600) + "h\n" + floor + " / " + area +
-                    "\nTeleport confirmation: " + (data.teleportConfirm ? "On" : "Off") + "\nNotifications: " + (data.notificationsEnabled ? "On" : "Off");
+                string area = areaIndex >= 0 ? areas.DisplayName(areaIndex, localization.Language()) : localization.Get(BaseText.Unknown);
+                output.text = Networking.LocalPlayer.displayName + "\n" + localization.RankName(permission.GetRank()) + "  " + localization.Get(BaseText.Level) + data.Level() +
+                    "\n" + localization.Get(BaseText.Xp) + ": " + data.experience + "\n" + localization.Get(BaseText.Time) + ": " + (data.totalSeconds / 3600) + (localization.Language() == 1 ? "小时" : "h") + "\n" + floor + " / " + area +
+                    "\n" + localization.Get(BaseText.TeleportConfirmation) + ": " + localization.Get(data.teleportConfirm ? BaseText.On : BaseText.Off) +
+                    "\n" + localization.Get(BaseText.Notifications) + ": " + localization.Get(data.notificationsEnabled ? BaseText.On : BaseText.Off);
             }
             SendCustomEventDelayedSeconds("Refresh", 5f);
         }

@@ -6,6 +6,7 @@ using UdonSharp;
 using UdonSharpEditor;
 using UnityEditor;
 using UnityEditor.Events;
+using UnityEditor.PackageManager;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -21,26 +22,26 @@ namespace BH2VSQ.Base.Editor
         private const string ConfigPath = Root + "/Data/Default/DefaultBaseConfig.asset";
         private Vector2 scroll;
 
-        [MenuItem("BH2VSQ BASE/Setup Wizard")]
-        public static void Open() { GetWindow<BaseSetupWizard>("BH2VSQ BASE Setup"); }
+        [MenuItem("BH2VSQ BASE/配置向导")]
+        public static void Open() { GetWindow<BaseSetupWizard>("BH2VSQ BASE 配置"); }
 
         private void OnGUI()
         {
             scroll = EditorGUILayout.BeginScrollView(scroll);
             GUILayout.Label("BH2VSQ BASE Core", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Run Build Package after scripts compile. Do not place real TOTP secrets in source control. TOTP in Udon is convenience gating only.", MessageType.Warning);
-            if (GUILayout.Button("1. Create Default Data")) CreateData();
-            if (GUILayout.Button("2. Build Prefabs and Demo Scene")) BuildAll();
-            if (GUILayout.Button("3. Validate Setup")) BaseValidator.ValidateSelection(true);
-            if (GUILayout.Button("4. Export Unitypackage")) Export();
+            EditorGUILayout.HelpBox("脚本编译后再构建资源包。不要将真实 TOTP 密钥提交到源码仓库；Udon 中的 TOTP 仅用于世界内分级。", MessageType.Warning);
+            if (GUILayout.Button("1. 创建默认数据")) CreateData();
+            if (GUILayout.Button("2. 构建预制体和示例场景")) BuildAll();
+            if (GUILayout.Button("3. 验证配置")) BaseValidator.ValidateSelection(true);
+            if (GUILayout.Button("4. 导出 Unity 资源包")) Export();
             EditorGUILayout.EndScrollView();
         }
 
-        [MenuItem("BH2VSQ BASE/Build Package")]
+        [MenuItem("BH2VSQ BASE/生成预制体与场景")]
         public static void BuildAll()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-                throw new OperationCanceledException("Scene save was canceled.");
+                throw new OperationCanceledException("场景保存已取消。");
             CreateFolders();
             CreateProgramAssets();
             CreateData();
@@ -52,7 +53,7 @@ namespace BH2VSQ.Base.Editor
             CreateDemoScene();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("BH2VSQ BASE: generated core, UI parts, points, data and demo scene.");
+            Debug.Log("BH2VSQ BASE：已生成核心、界面组件、位置点、数据和示例场景。");
         }
 
         private static void CreateFolders()
@@ -90,33 +91,39 @@ namespace BH2VSQ.Base.Editor
             AssetDatabase.Refresh();
             UdonSharpProgramAsset.CompileAllCsPrograms(true);
             if (UdonSharpProgramAsset.AnyUdonSharpScriptHasError())
-                throw new InvalidOperationException("UdonSharp compilation failed. Check Unity Console.");
+                throw new InvalidOperationException("UdonSharp 编译失败，请检查 Unity 控制台。");
         }
 
-        [MenuItem("BH2VSQ BASE/Create Default Data")]
+        [MenuItem("BH2VSQ BASE/创建默认数据")]
         public static void CreateData()
         {
             CreateFolders();
-            FloorDatabase floors = AssetDatabase.LoadAssetAtPath<FloorDatabase>(Root + "/Data/Default/DefaultFloorDatabase.asset");
-            if (floors == null) { floors = ScriptableObject.CreateInstance<FloorDatabase>(); AssetDatabase.CreateAsset(floors, Root + "/Data/Default/DefaultFloorDatabase.asset"); }
-            AreaDatabase areas = AssetDatabase.LoadAssetAtPath<AreaDatabase>(Root + "/Data/Default/DefaultAreaDatabase.asset");
-            if (areas == null) { areas = ScriptableObject.CreateInstance<AreaDatabase>(); AssetDatabase.CreateAsset(areas, Root + "/Data/Default/DefaultAreaDatabase.asset"); }
+            string locationsPath = Root + "/Data/Default/DefaultLocationDatabase.asset";
+            LocationDatabase locations = AssetDatabase.LoadAssetAtPath<LocationDatabase>(locationsPath);
+            if (locations == null) { locations = ScriptableObject.CreateInstance<LocationDatabase>(); AssetDatabase.CreateAsset(locations, locationsPath); }
             BaseConfig config = AssetDatabase.LoadAssetAtPath<BaseConfig>(ConfigPath);
             if (config == null) { config = ScriptableObject.CreateInstance<BaseConfig>(); AssetDatabase.CreateAsset(config, ConfigPath); }
-            config.floors = floors;
-            config.areas = areas;
-            if (AssetDatabase.LoadAssetAtPath<LocalizationDatabase>(Root + "/Data/Localization/DefaultLocalization.asset") == null)
-                AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<LocalizationDatabase>(), Root + "/Data/Localization/DefaultLocalization.asset");
+            config.locations = locations;
+            string localizationPath = Root + "/Data/Localization/DefaultLocalization.asset";
+            LocalizationDatabase translation = AssetDatabase.LoadAssetAtPath<LocalizationDatabase>(localizationPath);
+            if (translation == null) { translation = ScriptableObject.CreateInstance<LocalizationDatabase>(); AssetDatabase.CreateAsset(translation, localizationPath); }
+            if (translation.english == null || translation.english.Length != BaseText.EntryCount || translation.chinese == null || translation.chinese.Length != BaseText.EntryCount)
+            {
+                translation.english = LocalizationDatabase.DefaultEnglish();
+                translation.chinese = LocalizationDatabase.DefaultChinese();
+                EditorUtility.SetDirty(translation);
+            }
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssets();
         }
 
         private static void CreateFontAsset()
         {
+            EnsureTmpResources();
             const string path = Root + "/Fonts/BH2VSQ_UI.asset";
             if (AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path) != null) return;
             Font source = AssetDatabase.LoadAssetAtPath<Font>(Root + "/Fonts/NotoSansSC-Regular.ttf");
-            if (source == null) throw new InvalidOperationException("NotoSansSC-Regular.ttf is missing.");
+            if (source == null) throw new InvalidOperationException("缺少 NotoSansSC-Regular.ttf 字体文件。");
             TMP_FontAsset font = TMP_FontAsset.CreateFontAsset(source);
             font.atlasPopulationMode = AtlasPopulationMode.Dynamic;
             AssetDatabase.CreateAsset(font, path);
@@ -129,6 +136,19 @@ namespace BH2VSQ.Base.Editor
             }
             EditorUtility.SetDirty(font);
             AssetDatabase.SaveAssets();
+        }
+
+        private static void EnsureTmpResources()
+        {
+            if (Shader.Find("TextMeshPro/Mobile/Distance Field") != null) return;
+            UnityEditor.PackageManager.PackageInfo package = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.unity.textmeshpro");
+            if (package == null) throw new InvalidOperationException("缺少 TextMesh Pro 包。");
+            string essentials = Path.Combine(package.resolvedPath, "Package Resources", "TMP Essential Resources.unitypackage");
+            if (!File.Exists(essentials)) throw new FileNotFoundException("缺少 TextMesh Pro 必需资源包。", essentials);
+            AssetDatabase.ImportPackage(essentials, false);
+            AssetDatabase.Refresh();
+            if (Shader.Find("TextMeshPro/Mobile/Distance Field") == null)
+                throw new InvalidOperationException("尚未导入 TextMesh Pro 必需资源。请在编辑器中使用 Window → TextMeshPro → Import TMP Essential Resources，然后重新构建。");
         }
 
         private static T Manager<T>(Transform parent, string name) where T : UdonSharpBehaviour
@@ -148,13 +168,13 @@ namespace BH2VSQ.Base.Editor
         private static GameObject BuildCore()
         {
             BaseConfig config = AssetDatabase.LoadAssetAtPath<BaseConfig>(ConfigPath);
-            if (config == null || config.floors == null || config.areas == null)
-                throw new InvalidOperationException("Default BaseConfig is missing. Run Create Default Data.");
-            if (config.floors.names == null || config.floors.names.Length != 10 || config.floors.requiredRanks == null || config.floors.requiredRanks.Length != 10 || config.floors.xpMultipliers == null || config.floors.xpMultipliers.Length != 10)
-                throw new InvalidOperationException("Floor database needs 10 aligned entries.");
-            AreaDatabase areaData = config.areas;
-            if (areaData.ids == null || areaData.names == null || areaData.floorIds == null || areaData.requiredRanks == null || areaData.xpMultipliers == null || areaData.ids.Length != areaData.names.Length || areaData.ids.Length != areaData.floorIds.Length || areaData.ids.Length != areaData.requiredRanks.Length || areaData.ids.Length != areaData.xpMultipliers.Length)
-                throw new InvalidOperationException("Area database arrays must have matching lengths.");
+            if (config == null || config.locations == null)
+                throw new InvalidOperationException("缺少默认 BaseConfig，请先创建默认数据。");
+            LocationDatabase locationData = config.locations;
+            int locationCount = locationData.ids == null ? 0 : locationData.ids.Length;
+            if (locationCount == 0 || locationData.names == null || locationData.chineseNames == null || locationData.floorIds == null || locationData.floorNames == null || locationData.chineseFloorNames == null || locationData.requiredRanks == null || locationData.tabVisible == null || locationData.xpMultipliers == null ||
+                locationData.names.Length != locationCount || locationData.chineseNames.Length != locationCount || locationData.floorIds.Length != locationCount || locationData.floorNames.Length != locationCount || locationData.chineseFloorNames.Length != locationCount || locationData.requiredRanks.Length != locationCount || locationData.tabVisible.Length != locationCount || locationData.xpMultipliers.Length != locationCount)
+                throw new InvalidOperationException("地点数据库数组长度必须相同且不为零。");
             GameObject root = new GameObject("BH2VSQ_BASE_Core");
             BaseWorldSystem world = root.AddUdonSharpComponent<BaseWorldSystem>();
             GameObject coreGroup = Group(root.transform, "Core");
@@ -183,37 +203,34 @@ namespace BH2VSQ.Base.Editor
             FloorAdminManager floorAdmin = Manager<FloorAdminManager>(adminGroup.transform, "FloorAdminManager");
             BroadcastManager broadcast = Manager<BroadcastManager>(adminGroup.transform, "BroadcastManager");
 
-            floors.floorNames = (string[])config.floors.names.Clone();
-            floors.requiredRanks = (int[])config.floors.requiredRanks.Clone();
-            floors.xpMultipliers = (float[])config.floors.xpMultipliers.Clone();
-            areas.ids = (int[])config.areas.ids.Clone();
-            areas.names = (string[])config.areas.names.Clone();
-            areas.floorIds = (int[])config.areas.floorIds.Clone();
-            areas.requiredRanks = (int[])config.areas.requiredRanks.Clone();
-            areas.xpMultipliers = (float[])config.areas.xpMultipliers.Clone();
+            teleport.pointRoot = teleportGroup.transform;
+            floors.teleport = teleport; areas.teleport = teleport;
             tracker.areas = areas;
-            level.data = data; level.tracker = tracker; level.floors = floors; level.areas = areas;
+            level.data = data; level.tracker = tracker; level.areas = areas;
             localization.data = data;
             LocalizationDatabase translations = AssetDatabase.LoadAssetAtPath<LocalizationDatabase>(Root + "/Data/Localization/DefaultLocalization.asset");
             localization.english = (string[])translations.english.Clone();
             localization.chinese = (string[])translations.chinese.Clone();
             session.registry = registry; permission.session = session; permission.registry = registry; auth.session = session;
-            access.floors = floors; access.areas = areas; access.permission = permission;
-            population.tracker = tracker; radio.population = population;
+            access.floors = floors; access.teleport = teleport; access.permission = permission;
+            population.tracker = tracker; radio.population = population; radio.teleport = teleport;
             teleport.access = access;
             requests.teleport = teleport;
             requests.timeoutSeconds = config.requestTimeoutSeconds;
             admin.permission = permission; floorAdmin.admin = admin; floorAdmin.floors = floors;
             broadcast.admin = admin; broadcast.normalSeconds = config.broadcastNormalSeconds;
             broadcast.importantSeconds = config.broadcastImportantSeconds;
-            world.registry = registry; world.playerData = data; world.session = session;
+            world.registry = registry; world.playerData = data; world.tracker = tracker; world.session = session;
             world.floors = floors; world.access = access; world.teleport = teleport;
 
-            TeleportPoint[] points = new TeleportPoint[areas.ids.Length];
+            TeleportPoint[] points = new TeleportPoint[locationCount];
             for (int i = 0; i < points.Length; i++)
             {
-                TeleportPoint point = Manager<TeleportPoint>(teleportGroup.transform, "Point_" + areas.names[i].Replace(' ', '_'));
-                point.pointId = i; point.floorId = areas.floorIds[i]; point.areaId = areas.ids[i]; point.pointName = areas.names[i];
+                TeleportPoint point = Manager<TeleportPoint>(teleportGroup.transform, "Point_" + locationData.names[i].Replace(' ', '_'));
+                point.locationId = locationData.ids[i]; point.locationName = locationData.names[i]; point.chineseName = locationData.chineseNames[i];
+                point.floorId = locationData.floorIds[i]; point.floorName = locationData.floorNames[i]; point.chineseFloorName = locationData.chineseFloorNames[i];
+                point.requiredRank = locationData.requiredRanks[i]; point.tabVisible = locationData.tabVisible[i]; point.xpMultiplier = locationData.xpMultipliers[i];
+                point.isSafeFallback = point.locationId == locationData.safeFallbackId; point.radioDutyArea = point.locationId == locationData.radioDutyId;
                 point.transform.localPosition = new Vector3(i * 3f, 0f, 0f);
                 point.destination = point.transform;
                 points[i] = point;
@@ -234,7 +251,7 @@ namespace BH2VSQ.Base.Editor
                 BoxCollider collider = trigger.AddComponent<BoxCollider>();
                 collider.isTrigger = true; collider.size = new Vector3(2f, 2.5f, 2f);
                 AreaTrigger areaTrigger = trigger.AddUdonSharpComponent<AreaTrigger>();
-                areaTrigger.tracker = tracker; areaTrigger.access = access; areaTrigger.teleport = teleport; areaTrigger.areaId = areas.ids[i];
+                areaTrigger.tracker = tracker; areaTrigger.access = access; areaTrigger.teleport = teleport; areaTrigger.point = point;
             }
             teleport.points = points;
 
@@ -257,13 +274,13 @@ namespace BH2VSQ.Base.Editor
             EditorSceneManager.SaveScene(scene, Root + "/Scenes/BH2VSQ_BASE_Demo.unity");
         }
 
-        [MenuItem("BH2VSQ BASE/Export Unitypackage")]
+        [MenuItem("BH2VSQ BASE/导出 Unity 资源包")]
         public static void Export()
         {
             string directory = Path.Combine(Directory.GetCurrentDirectory(), "Releases");
             Directory.CreateDirectory(directory);
-            AssetDatabase.ExportPackage(Root, Path.Combine(directory, "BH2VSQ_BASE_Core.unitypackage"), ExportPackageOptions.Recurse);
-            Debug.Log("BH2VSQ BASE package exported to " + directory);
+            AssetDatabase.ExportPackage(new[] { Root, "Assets/TextMesh Pro", "Assets/SerializedUdonPrograms" }, Path.Combine(directory, "BH2VSQ_BASE_Core.unitypackage"), ExportPackageOptions.Recurse);
+            Debug.Log("BH2VSQ BASE 资源包已导出到 " + directory);
         }
 
         // UI and component prefab builders are defined in the other partial file.

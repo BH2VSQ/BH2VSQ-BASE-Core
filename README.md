@@ -1,29 +1,16 @@
 # BH2VSQ BASE Core
 
-VRChat World UdonSharp base system for Unity 2022.3.22f1 and VRChat Worlds SDK 3.10.4. The working design baseline is V1.3 of the supplied specification.
+适用于 Unity 2022.3.22f1、VRChat Worlds SDK 3.10.4 的 UdonSharp 基础系统。以需求文档 V1.3 为基线，包含玩家资料、经验、TOTP 本地会话、位置权限、传送与同意请求、楼层状态、电台值守、管理员操作和实例广播。
 
-The source covers player registry and persistence, local TOTP sessions, floors and areas, teleports and consent requests, XP, radio duty, admin controls, and instance broadcast notifications. The `BH2VSQ BASE` Unity Editor menu builds the configured core prefab, component prefabs, default data, demo scene, and `.unitypackage` from source.
+## 快速开始
 
-**Current status:** the source implementation passes offline checks. Unity Editor import, UdonSharp compilation, generated prefab assets, multi-client tests, and package export await a valid Unity license on this machine. The generated files are not claimed to exist yet. See [verification](verification.md).
+1. 激活 Unity 2022.3.22f1，在仓库根目录运行 `tools/Build-Package.ps1`。脚本准备 VRChat SDK 和 TextMesh Pro 必需资源，编译 UdonSharp，生成预制体与示例场景，验证引用并导出 `Releases/BH2VSQ_BASE_Core.unitypackage`。
+2. 在 VRChat Worlds 项目中导入资源包，将 `Assets/BH2VSQ_BASE/Prefabs/Core/BH2VSQ_BASE_Core.prefab` 放入场景。
+3. 将 `Teleport/Point_*` 移到实际目的地，调整触发器。在场景实例上配置仅供此世界使用的 TOTP 密钥，运行 **BH2VSQ BASE → 验证配置**。
+4. 用 ClientSim 和至少两个 VRChat 客户端检查权限、同步、传送请求、楼层状态与广播。
 
-## Start here
+每个 `TeleportPoint` 都保存位置和楼层 ID、名称、权限、传送页显示状态、目的地、经验倍率等信息。新增楼层或位置时，在核心的 `Teleport` 子节点下复制点，修改字段并移动到目的地；运行时会重新扫描，无须修改代码。`DefaultLocationDatabase.asset` 只提供初始示例点。
 
-1. Activate Unity 2022.3.22f1 in Unity Hub.
-2. Run `tools/Bootstrap-VRChat.ps1` to restore the pinned VRChat packages, or let VRChat Creator Companion resolve `Packages/vpm-manifest.json`.
-3. Open this project in Unity. Use **BH2VSQ BASE → Build Package**. The menu compiles UdonSharp and creates the prefabs and demo scene.
-4. Use **BH2VSQ BASE → Validate Setup** on the scene instance after configuring it.
-5. Run `tools/Build-Package.ps1` to build and export `Releases/BH2VSQ_BASE_Core.unitypackage` in batch mode after Unity licensing is ready.
+详见[安装](Assets/BH2VSQ_BASE/Documentation/INSTALL.md)、[配置](Assets/BH2VSQ_BASE/Documentation/CONFIGURATION.md)、[预制体](Assets/BH2VSQ_BASE/Documentation/PREFABS.md)、[安全边界](Assets/BH2VSQ_BASE/Documentation/SECURITY.md)和[验证记录](verification.md)。
 
-Install the exported package into an existing VRChat Worlds project, drag `Assets/BH2VSQ_BASE/Prefabs/Core/BH2VSQ_BASE_Core.prefab` into the scene, move the default teleport points to real destinations, configure TOTP on the scene instance, then validate and test with at least two VRChat clients. Detailed steps: [installation](Assets/BH2VSQ_BASE/Documentation/INSTALL.md), [configuration](Assets/BH2VSQ_BASE/Documentation/CONFIGURATION.md), [prefabs](Assets/BH2VSQ_BASE/Documentation/PREFABS.md), [security](Assets/BH2VSQ_BASE/Documentation/SECURITY.md).
-
-## Repository layout
-
-- `Assets/BH2VSQ_BASE/Scripts`: runtime UdonSharp and authoring ScriptableObjects.
-- `Assets/BH2VSQ_BASE/Editor`: generator, setup wizard, and validator.
-- `Assets/BH2VSQ_BASE/Fonts`: Noto Sans SC font and OFL notice.
-- `Assets/BH2VSQ_BASE/Audio`: generated local broadcast tones.
-- `Tests`: offline C# syntax, runtime type check with stubs, and RFC 6238 vectors. These do not replace Unity/Udon compilation.
-
-Runtime authentication and network data are client controlled in a VRChat world. Do not treat this plugin as a security boundary for real secrets, paid access, or sensitive data. See [security](Assets/BH2VSQ_BASE/Documentation/SECURITY.md).
-
-Code is MIT licensed. The bundled Noto Sans SC font is under the separate SIL Open Font License in `Assets/BH2VSQ_BASE/Fonts/OFL.txt`.
+代码采用 MIT 许可。Noto Sans SC 字体另按 `Assets/BH2VSQ_BASE/Fonts/OFL.txt` 中的 SIL OFL 授权。VRChat 客户端可读取世界内的 TOTP 密钥与同步数据，不能将此系统用于保护真实凭据或付费权限。

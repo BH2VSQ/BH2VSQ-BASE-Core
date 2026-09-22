@@ -12,28 +12,73 @@ namespace BH2VSQ.Base
         public AreaPopulationManager population;
         public RadioDutyManager radio;
         public AreaManager areas;
+        public LocalizationManager localization;
         public TMP_Text status;
         public TMP_Text populationLeft;
         public TMP_Text populationRight;
         public GameObject populationRoot;
         public GameObject broadcastRoot;
-        public int selectedFloor = 3;
+        public UIButtonAction[] floorActions;
+        public TMP_Text[] floorLabels;
+        public GameObject[] floorObjects;
+        public GameObject previousFloorButton;
+        public GameObject nextFloorButton;
+        public GameObject previousPopulationButton;
+        public GameObject nextPopulationButton;
+        public int selectedFloor = 1;
         public int selectedState;
+        private int floorPage;
+        private int populationPage;
 
         public void Refresh()
         {
-            if (status != null) status.text = admin != null && admin.CanManage() ?
-                "Floor " + floors.floorNames[selectedFloor] + ": " + floors.GetState(selectedFloor) + "\n7F Radio: " + (radio.OnDuty() ? "On Duty" : "No Duty") : "Admin only";
+            RefreshFloorButtons();
+            if (status != null && localization != null) status.text = admin != null && admin.CanManage() ?
+                localization.Get(BaseText.Floor) + " " + floors.GetFloor(selectedFloor, localization.Language()) + ": " + localization.StateName(floors.GetState(selectedFloor)) +
+                "\n" + localization.Get(BaseText.Radio) + ": " + localization.Get(radio.OnDuty() ? BaseText.OnDuty : BaseText.NoDuty) : localization.Get(BaseText.AdminOnly);
             if (admin == null || !admin.CanManage() || areas == null || population == null) return;
+            int count = areas.Count();
+            int pages = (count + 13) / 14;
+            if (populationPage >= pages) populationPage = pages > 0 ? pages - 1 : 0;
             string left = "", right = "";
-            for (int i = 0; i < areas.ids.Length; i++)
+            for (int i = populationPage * 14; i < count && i < (populationPage + 1) * 14; i++)
             {
-                string line = areas.names[i] + ": " + population.Count(areas.ids[i]) + "\n";
-                if (i < (areas.ids.Length + 1) / 2) left += line; else right += line;
+                string line = areas.DisplayName(i, localization.Language()) + ": " + population.Count(areas.IdAt(i)) + "\n";
+                if (i - populationPage * 14 < 7) left += line; else right += line;
             }
             if (populationLeft != null) populationLeft.text = left;
             if (populationRight != null) populationRight.text = right;
+            if (previousPopulationButton != null) previousPopulationButton.SetActive(populationPage > 0);
+            if (nextPopulationButton != null) nextPopulationButton.SetActive(populationPage + 1 < pages);
         }
+
+        private void RefreshFloorButtons()
+        {
+            if (floors == null || floorObjects == null || floorObjects.Length == 0) return;
+            int count = floors.UniqueFloorCount();
+            if (count > 0 && !floors.Valid(selectedFloor)) selectedFloor = floors.FloorIdAt(0);
+            int pages = (count + floorObjects.Length - 1) / floorObjects.Length;
+            if (floorPage >= pages) floorPage = pages > 0 ? pages - 1 : 0;
+            for (int i = 0; i < floorObjects.Length; i++)
+            {
+                int position = floorPage * floorObjects.Length + i;
+                bool visible = position < count;
+                floorObjects[i].SetActive(visible);
+                if (!visible) continue;
+                int floorId = floors.FloorIdAt(position);
+                floorActions[i].value = floorId;
+                floorLabels[i].text = floors.GetFloor(floorId, localization.Language());
+            }
+            if (previousFloorButton != null) previousFloorButton.SetActive(floorPage > 0);
+            if (nextFloorButton != null) nextFloorButton.SetActive(floorPage + 1 < pages);
+        }
+
+        public void NextFloorPage() { floorPage++; Refresh(); }
+        public void PreviousFloorPage() { if (floorPage > 0) floorPage--; Refresh(); }
+        public void NextPopulationPage() { populationPage++; Refresh(); }
+        public void PreviousPopulationPage() { if (populationPage > 0) populationPage--; Refresh(); }
+        public bool CanOpenPlayerManagement() { return admin != null && admin.CanManage(); }
+
         public void ShowPopulation()
         {
             if (admin == null || !admin.CanManage()) return;
@@ -41,13 +86,14 @@ namespace BH2VSQ.Base
             if (broadcastRoot != null) broadcastRoot.SetActive(false);
             Refresh();
         }
+
         public void ShowBroadcast()
         {
             if (admin == null || !admin.CanManage()) return;
             if (populationRoot != null) populationRoot.SetActive(false);
             if (broadcastRoot != null) broadcastRoot.SetActive(true);
         }
-        public bool CanOpenPlayerManagement() { return admin != null && admin.CanManage(); }
+
         public void ApplyFloorState()
         {
             if (floorAdmin != null) floorAdmin.SetFloor(selectedFloor, selectedState);

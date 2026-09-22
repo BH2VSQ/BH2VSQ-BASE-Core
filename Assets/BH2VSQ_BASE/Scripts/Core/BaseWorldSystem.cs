@@ -8,6 +8,7 @@ namespace BH2VSQ.Base
     {
         public PlayerRegistry registry;
         public PlayerDataManager playerData;
+        public PlayerAreaTracker tracker;
         public AuthenticationSession session;
         public FloorManager floors;
         public AccessManager access;
@@ -17,8 +18,8 @@ namespace BH2VSQ.Base
 
         private void Start()
         {
-            ready = registry != null && playerData != null && session != null && floors != null && access != null && teleport != null;
-            if (!ready) Debug.LogError("BH2VSQ BASE: missing core reference. Run Validator.");
+            ready = registry != null && playerData != null && tracker != null && session != null && floors != null && access != null && teleport != null;
+            if (!ready) Debug.LogError("BH2VSQ BASE：核心引用缺失，请运行配置验证。");
             else
             {
                 registry.Refresh();

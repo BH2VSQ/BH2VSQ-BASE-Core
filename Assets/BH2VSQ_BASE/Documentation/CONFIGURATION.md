@@ -1,26 +1,18 @@
-# Configuration and Inspector guide
+# 配置说明
 
-## Authoring assets
+## 新增位置或楼层
 
-`Data/Default/DefaultFloorDatabase.asset` is the source for the ten fixed floor indexes: B3=0, B2=1, B1=2, 1F=3, 2F=4, 3F=5, 4F=6, 5F=7, 6F=8, 7F=9. It sets names, minimum rank and XP multiplier. Default multipliers are 5, 3, 1, 0.5, 1.5, 1, 1, 1, 2, 3.
+将 `Prefabs/Teleport/BH2VSQ_TeleportPoint.prefab` 或现有点复制到核心的 `Teleport` 子节点。给新点设置唯一 `locationId`，填写 `locationName` / `chineseName`、`floorId`、`floorName` / `chineseFloorName`、`requiredRank` 和 `xpMultiplier`。点的 Transform 是传送目的地；按实际空间调整子物体 `AreaTrigger` 的碰撞体。
 
-`DefaultAreaDatabase.asset` sets area IDs, names, parent floor, minimum rank and an extra XP multiplier. IDs are 1000; 2000-2003; 3000; 4000-9000; 10000 (7F Radio); 10001 (Rooftop). The Rooftop requires Admin. Area multipliers default to 1. `DefaultBaseConfig.asset` links the two databases and sets teleport request timeout and broadcast durations. Regenerating copies these values into serializable Udon fields; ScriptableObjects are editor authoring data, not Udon runtime data.
+勾选 `tabVisible` 才在传送页显示。用 `radioDutyArea` 标记值守区。全场景只能有一个 `isSafeFallback` 安全返回点。新楼层只需使用新的 `floorId`；同楼层的所有点须使用一致的楼层名称。楼层状态同步到该楼层各点。传送页与管理员页分页显示，位置数量不固定。增删点后运行验证器。
 
-`Data/Localization/DefaultLocalization.asset` contains parallel English and Chinese UI label arrays. The first entries map to Personal, Teleport, Players, Admin, Login, Send, Close, Accept, Reject, Refresh, Broadcast and Floor. A generated dynamic Noto Sans SC TextMesh Pro font renders Chinese. Persistent language is 0=English, 1=Chinese. Some dynamic status text remains English in this version.
+`Data/Default/DefaultLocationDatabase.asset` 是首次生成种子，默认包含 B3、B2、B1、1F 至 7F 与屋顶共 14 个位置，不是运行时目录。它的修改不会覆盖已有场景实例。`Data/Localization/DefaultLocalization.asset` 包含中英文界面文本；玩家可切换语言并保存偏好。
 
-## Core scene instance
+## 核心组件
 
-- `Authentication/TOTPAuthManager`: configure two different Base32 secrets. Blank values disable that rank. Codes are six digit HMAC-SHA1 TOTP with a 30 second period and ±1 period tolerance, checked against `Networking.GetNetworkDateTime()`.
-- `Floor/FloorManager`: review `floorNames`, `requiredRanks`, `xpMultipliers`, and initial `states`. Admin changes to state are manually synchronized. Open=0, Reserved=1, Maintenance=2; only Admin bypasses reserved/maintenance.
-- `Floor/AreaManager`: review each area ID, floor ID, rank and XP modifier. Keep the arrays aligned and IDs unique.
-- `Teleport/Point_*`: edit point ID, floor ID, area ID, name and transform. The point transform is the teleport destination. `AreaTrigger` child has a trigger collider, area ID, tracker, access and teleport references. Resize it to fit the physical entrance/area. Unauthorized entrants return to 1F or respawn if 1F is unavailable.
-- `Teleport/TeleportRequestManager`: `timeoutSeconds` defaults to 15. The single shared request slot serializes requester ID, target ID, type, state and expiry. Type 0 moves requester to target after acceptance; type 1 moves target to requester.
-- `Admin/BroadcastManager`: `normalSeconds`=8, `importantSeconds`=20, `emergencySeconds`=120. The eight-slot synchronized ring carries ID, priority, message, sender, timestamp and expiry. A notification queue on each client displays messages one at a time; emergency stays until dismissed by that client. Normal broadcasts sent before a player's join are skipped.
-- `UI/MainCanvas/TabMenu/AdminPanel`: Admin opens the shared player roster from **Player Management**, sees population and radio duty, changes floor state, and sends broadcasts. The roster is read-only; VRChat player moderation is outside this Udon plugin.
-- `UI/NotificationLayer`: each client follows their own head; it is not a fixed room screen. `BroadcastNotificationManager` holds local notification state and three tone clips. The main menu uses a separate world-space canvas.
+- `Authentication/TOTPAuthManager`：成员和管理员 Base32 密钥应不同；空值禁用对应等级。六位 HMAC-SHA1 TOTP，30 秒周期，允许前后各一个周期。
+- `Teleport/TeleportRequestManager`：默认 15 秒超时。共享单个同步请求槽；类型 0 是请求者传向目标，类型 1 是目标传向请求者。
+- `Admin/BroadcastManager`：普通、重要、紧急广播默认持续 8、20、120 秒。八槽同步环保存内容与过期时间，各客户端独立排队显示；紧急广播由本地用户关闭。
+- `UI/NotificationLayer`：跟随本地视角；主菜单是独立的世界空间画布。
 
-## Player data and runtime state
-
-`PlayerDataManager` waits for `OnPlayerRestored` before reading or writing XP, total seconds, language, teleport confirmation, notification enablement and volume. The 30-second XP tick awards floor multiplier times area multiplier, storing fractional XP locally until whole points accrue. Rank is a local authentication session and resets to Visitor on each join. The synchronized registry publishes a display rank for the player list; public ranks and XP are not trusted authority.
-
-`PlayerRegistry`, `PlayerAreaTracker`, `FloorManager`, `TeleportRequestManager`, and `BroadcastManager` use manual sync with ownership transfer and `RequestSerialization()`. Shared player rank/area arrays and the one-slot teleport request can race if multiple clients write nearly simultaneously. Verify with multiple VRChat clients and consider player-owned objects for high contention worlds. See `SECURITY.md` for authority limits.
+`PlayerDataManager` 等待 `OnPlayerRestored` 后读写经验、在线时长、语言和通知偏好。每 30 秒按当前点的经验倍率累计经验。登录等级是本地会话，重新加入后回到游客；同步等级及经验不构成可信权限。共享的玩家列表、区域、楼层、请求及广播在多人并发写入时可能互相覆盖，详见[安全边界](SECURITY.md)。

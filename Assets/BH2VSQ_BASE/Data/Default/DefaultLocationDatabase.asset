@@ -1,0 +1,95 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bef889adce5cc9e44afa595fc8cdf349, type: 3}
+  m_Name: DefaultLocationDatabase
+  m_EditorClassIdentifier: 
+  ids: e8030000d0070000d1070000d2070000d3070000b80b0000a00f00008813000070170000581b0000401f0000282300001027000011270000
+  names:
+  - B3 Secret
+  - B2
+  - B2 Monitoring
+  - B2 Server
+  - B2 Equipment Control
+  - B1 AV
+  - 1F Living
+  - 2F Entertainment
+  - 3F Private
+  - 4F Private
+  - 5F Private
+  - 6F Residence
+  - 7F Radio
+  - Rooftop
+  chineseNames:
+  - "B3 \u79D8\u5BC6\u533A"
+  - B2
+  - "B2 \u76D1\u63A7\u5BA4"
+  - "B2 \u670D\u52A1\u5668\u5BA4"
+  - "B2 \u8BBE\u5907\u63A7\u5236\u5BA4"
+  - "B1 \u5F71\u97F3\u5BA4"
+  - "1F \u751F\u6D3B\u533A"
+  - "2F \u5A31\u4E50\u533A"
+  - "3F \u79C1\u4EBA\u533A"
+  - "4F \u79C1\u4EBA\u533A"
+  - "5F \u79C1\u4EBA\u533A"
+  - "6F \u4F4F\u5B85\u533A"
+  - "7F \u7535\u53F0"
+  - "\u5C4B\u9876"
+  floorIds: fdfffffffefffffffefffffffefffffffeffffffffffffff0100000002000000030000000400000005000000060000000700000064000000
+  floorNames:
+  - B3
+  - B2
+  - B2
+  - B2
+  - B2
+  - B1
+  - 1F
+  - 2F
+  - 3F
+  - 4F
+  - 5F
+  - 6F
+  - 7F
+  - Rooftop
+  chineseFloorNames:
+  - B3
+  - B2
+  - B2
+  - B2
+  - B2
+  - B1
+  - 1F
+  - 2F
+  - 3F
+  - 4F
+  - 5F
+  - 6F
+  - 7F
+  - "\u5C4B\u9876"
+  requiredRanks: 0200000001000000010000000100000001000000000000000000000000000000000000000000000000000000010000000100000002000000
+  tabVisible: 0101010101010101010101010101
+  xpMultipliers:
+  - 5
+  - 3
+  - 3
+  - 3
+  - 3
+  - 1
+  - 0.5
+  - 1.5
+  - 1
+  - 1
+  - 1
+  - 2
+  - 3
+  - 3
+  safeFallbackId: 4000
+  radioDutyId: 10000

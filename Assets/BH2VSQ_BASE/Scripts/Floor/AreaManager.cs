@@ -2,18 +2,55 @@ using UdonSharp;
 
 namespace BH2VSQ.Base
 {
+    // Compatibility facade for location and population views; TeleportPoint is the data source.
     public class AreaManager : UdonSharpBehaviour
     {
-        public int[] ids = { 1000, 2000, 2001, 2002, 2003, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 10001 };
-        public string[] names = { "B3 Secret", "B2", "B2 Monitoring", "B2 Server", "B2 Equipment Control", "B1 AV", "1F", "2F", "3F", "4F", "5F", "6F", "7F Radio", "Rooftop" };
-        public int[] floorIds = { 0, 1, 1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9 };
-        public int[] requiredRanks = { 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 2 };
-        public float[] xpMultipliers = { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f };
+        public TeleportManager teleport;
 
-        public int IndexOf(int id)
+        public int Count() { return teleport == null || teleport.points == null ? 0 : teleport.points.Length; }
+
+        public int IndexOf(int locationId)
         {
-            for (int i = 0; i < ids.Length; i++) if (ids[i] == id) return i;
+            if (teleport == null || teleport.points == null) return -1;
+            for (int i = 0; i < teleport.points.Length; i++)
+                if (teleport.points[i] != null && teleport.points[i].locationId == locationId) return i;
             return -1;
+        }
+
+        public int IdAt(int index)
+        {
+            TeleportPoint point = PointAt(index);
+            return point == null ? BaseConstants.InvalidId : point.locationId;
+        }
+
+        public int FloorIdAt(int index)
+        {
+            TeleportPoint point = PointAt(index);
+            return point == null ? BaseConstants.InvalidId : point.floorId;
+        }
+
+        public float XpMultiplierAt(int index)
+        {
+            TeleportPoint point = PointAt(index);
+            return point == null ? 1f : point.xpMultiplier;
+        }
+
+        public bool IsRadioLocation(int locationId)
+        {
+            TeleportPoint point = teleport == null ? null : teleport.ById(locationId);
+            return point != null && point.radioDutyArea;
+        }
+
+        public string DisplayName(int index, int language)
+        {
+            TeleportPoint point = PointAt(index);
+            return point == null ? "?" : point.DisplayName(language);
+        }
+
+        private TeleportPoint PointAt(int index)
+        {
+            if (teleport == null || teleport.points == null || index < 0 || index >= teleport.points.Length) return null;
+            return teleport.points[index];
         }
     }
 }
