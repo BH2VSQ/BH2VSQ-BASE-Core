@@ -11,6 +11,5 @@
 
 每个 `TeleportPoint` 都保存位置和楼层 ID、名称、权限、传送页显示状态、目的地、经验倍率等信息。新增楼层或位置时，在核心的 `Teleport` 子节点下复制点，修改字段并移动到目的地；运行时会重新扫描，无须修改代码。`DefaultLocationDatabase.asset` 只提供初始示例点。
 
-详见[安装](Assets/BH2VSQ_BASE/Documentation/INSTALL.md)、[配置](Assets/BH2VSQ_BASE/Documentation/CONFIGURATION.md)、[预制体](Assets/BH2VSQ_BASE/Documentation/PREFABS.md)、[安全边界](Assets/BH2VSQ_BASE/Documentation/SECURITY.md)和[验证记录](verification.md)。
+详见[安装](Assets/BH2VSQ_BASE/Documentation/INSTALL.md)、[配置](Assets/BH2VSQ_BASE/Documentation/CONFIGURATION.md)、[预制体](Assets/BH2VSQ_BASE/Documentation/PREFABS.md)、[安全](Assets/BH2VSQ_BASE/Documentation/SECURITY.md)和[验证记录](verification.md)。
 
-代码采用 MIT 许可。Noto Sans SC 字体另按 `Assets/BH2VSQ_BASE/Fonts/OFL.txt` 中的 SIL OFL 授权。VRChat 客户端可读取世界内的 TOTP 密钥与同步数据，不能将此系统用于保护真实凭据或付费权限。
