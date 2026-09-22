@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: PermissionLoginPanel
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: e1c1bbb9b3776334599e80727d8d48cb,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: e1c1bbb9b3776334599e80727d8d48cb, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: 9510a730be23f0645801f2d26a1ff2bc, type: 3}

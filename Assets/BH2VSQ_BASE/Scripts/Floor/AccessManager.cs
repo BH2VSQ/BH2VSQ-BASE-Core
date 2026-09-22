@@ -11,25 +11,80 @@ namespace BH2VSQ.Base
 
         public AccessResult CheckPointAccess(TeleportPoint point)
         {
-            if (!Utilities.IsValid(Networking.LocalPlayer)) return AccessResult.InvalidPlayer;
-            if (point == null) return AccessResult.InvalidArea;
-            if (permission == null || permission.GetRank() < point.requiredRank) return AccessResult.InsufficientRank;
-            if (permission.IsAdmin()) return AccessResult.Allowed;
-            FloorState state = floors == null ? FloorState.Maintenance : floors.GetState(point.floorId);
-            if (state == FloorState.Reserved) return AccessResult.FloorReserved;
-            if (state == FloorState.Maintenance) return AccessResult.FloorMaintenance;
+            if (!Utilities.IsValid(Networking.LocalPlayer))
+                return AccessResult.InvalidPlayer;
+
+            if (point == null)
+                return AccessResult.InvalidArea;
+
+            if (permission == null)
+                return AccessResult.InsufficientRank;
+
+            BaseRank playerRank = permission.GetRank();
+
+            // Explicit hierarchical permission:
+            // Admin   >= Member >= Visitor
+            //
+            // Admin   can enter Admin / Member / Visitor points.
+            // Member  can enter Member / Visitor points.
+            // Visitor can enter Visitor points only.
+            if (!HasRequiredRank(playerRank, point.requiredRank))
+                return AccessResult.InsufficientRank;
+
+            // Admin bypasses reserved / maintenance restrictions.
+            if (playerRank == BaseRank.Admin)
+                return AccessResult.Allowed;
+
+            FloorState state =
+                floors == null
+                    ? FloorState.Maintenance
+                    : floors.GetState(point.floorId);
+
+            if (state == FloorState.Reserved)
+                return AccessResult.FloorReserved;
+
+            if (state == FloorState.Maintenance)
+                return AccessResult.FloorMaintenance;
+
             return AccessResult.Allowed;
         }
 
         public AccessResult CheckFloorAccess(int floorId)
         {
-            if (teleport == null || teleport.ByFloor(floorId) == null) return AccessResult.InvalidFloor;
+            if (teleport == null || teleport.ByFloor(floorId) == null)
+                return AccessResult.InvalidFloor;
+
             return CheckPointAccess(teleport.ByFloor(floorId));
         }
 
         public AccessResult CheckAreaAccess(int locationId)
         {
-            return CheckPointAccess(teleport == null ? null : teleport.ById(locationId));
+            return CheckPointAccess(
+                teleport == null
+                    ? null
+                    : teleport.ById(locationId)
+            );
+        }
+
+        private bool HasRequiredRank(
+            BaseRank playerRank,
+            BaseRank requiredRank)
+        {
+            int playerLevel = GetRankLevel(playerRank);
+            int requiredLevel = GetRankLevel(requiredRank);
+
+            return playerLevel >= requiredLevel;
+        }
+
+        private int GetRankLevel(BaseRank rank)
+        {
+            if (rank == BaseRank.Admin)
+                return 2;
+
+            if (rank == BaseRank.Member)
+                return 1;
+
+            return 0;
         }
     }
 }

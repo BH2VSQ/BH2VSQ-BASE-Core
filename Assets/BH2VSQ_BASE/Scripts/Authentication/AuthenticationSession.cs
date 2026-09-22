@@ -1,4 +1,5 @@
 using UdonSharp;
+using VRC.SDKBase;
 
 namespace BH2VSQ.Base
 {
@@ -11,16 +12,22 @@ namespace BH2VSQ.Base
         public void ResetSession()
         {
             rank = BaseRank.Visitor;
-            authenticatedTicks = 0;
-            if (registry != null) registry.PublishRank(rank);
+            authenticatedTicks = 0L;
+
+            if (registry != null)
+                registry.PublishRank(rank);
         }
 
         public void Authenticate(BaseRank newRank)
         {
-            if (newRank <= rank) return;
+            if (newRank <= rank)
+                return;
+
             rank = newRank;
-            authenticatedTicks = VRC.SDKBase.Networking.GetNetworkDateTime().Ticks;
-            if (registry != null) registry.PublishRank(rank);
+            authenticatedTicks = Networking.GetNetworkDateTime().Ticks;
+
+            if (registry != null)
+                registry.PublishRank(rank);
         }
     }
 }
