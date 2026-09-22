@@ -17,7 +17,6 @@ namespace BH2VSQ.Base
         public TMP_Text populationLeft;
         public TMP_Text populationRight;
         public GameObject populationRoot;
-        public GameObject broadcastRoot;
         public UIButtonAction[] floorActions;
         public TMP_Text[] floorLabels;
         public GameObject[] floorObjects;
@@ -83,15 +82,7 @@ namespace BH2VSQ.Base
         {
             if (admin == null || !admin.CanManage()) return;
             if (populationRoot != null) populationRoot.SetActive(true);
-            if (broadcastRoot != null) broadcastRoot.SetActive(false);
             Refresh();
-        }
-
-        public void ShowBroadcast()
-        {
-            if (admin == null || !admin.CanManage()) return;
-            if (populationRoot != null) populationRoot.SetActive(false);
-            if (broadcastRoot != null) broadcastRoot.SetActive(true);
         }
 
         public void ApplyFloorState()

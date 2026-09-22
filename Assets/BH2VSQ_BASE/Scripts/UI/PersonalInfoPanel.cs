@@ -1,12 +1,18 @@
 using UdonSharp;
 using TMPro;
+using UnityEngine;
 using VRC.SDKBase;
 
 namespace BH2VSQ.Base
 {
     public class PersonalInfoPanel : UdonSharpBehaviour
     {
-        public TMP_Text output;
+        public TMP_Text nameText;
+        public TMP_Text rankText;
+        public TMP_Text levelText;
+        public TMP_Text xpText;
+        public TMP_Text timeText;
+        public RectTransform xpFill;
         public PlayerDataManager data;
         public PermissionManager permission;
         public PlayerAreaTracker tracker;
@@ -14,20 +20,19 @@ namespace BH2VSQ.Base
         public AreaManager areas;
         public LocalizationManager localization;
 
-        private void Start() { SendCustomEventDelayedSeconds("Refresh", 1f); }
         public void Refresh()
         {
-            if (output != null && Utilities.IsValid(Networking.LocalPlayer))
-            {
-                string floor = floors != null && floors.Valid(tracker.localFloorId) ? floors.GetFloor(tracker.localFloorId, localization.Language()) : localization.Get(BaseText.Unknown);
-                int areaIndex = areas != null ? areas.IndexOf(tracker.localAreaId) : -1;
-                string area = areaIndex >= 0 ? areas.DisplayName(areaIndex, localization.Language()) : localization.Get(BaseText.Unknown);
-                output.text = Networking.LocalPlayer.displayName + "\n" + localization.RankName(permission.GetRank()) + "  " + localization.Get(BaseText.Level) + data.Level() +
-                    "\n" + localization.Get(BaseText.Xp) + ": " + data.experience + "\n" + localization.Get(BaseText.Time) + ": " + (data.totalSeconds / 3600) + (localization.Language() == 1 ? "小时" : "h") + "\n" + floor + " / " + area +
-                    "\n" + localization.Get(BaseText.TeleportConfirmation) + ": " + localization.Get(data.teleportConfirm ? BaseText.On : BaseText.Off) +
-                    "\n" + localization.Get(BaseText.Notifications) + ": " + localization.Get(data.notificationsEnabled ? BaseText.On : BaseText.Off);
-            }
-            SendCustomEventDelayedSeconds("Refresh", 5f);
+            if (!Utilities.IsValid(Networking.LocalPlayer) || data == null) return;
+            int level = data.Level();
+            int currentThreshold = (level - 1) * (level - 1) * 100;
+            int nextThreshold = level * level * 100;
+            int seconds = data.totalSeconds;
+            if (nameText != null) nameText.text = Networking.LocalPlayer.displayName;
+            if (rankText != null && permission != null && localization != null) rankText.text = localization.RankName(permission.GetRank());
+            if (levelText != null) levelText.text = "等级  " + level;
+            if (xpText != null) xpText.text = "经验  " + data.experience + " / " + nextThreshold;
+            if (timeText != null) timeText.text = "游戏时长  " + (seconds / 3600) + "小时 " + ((seconds % 3600) / 60) + "分";
+            if (xpFill != null) xpFill.sizeDelta = new Vector2(485f * Mathf.Clamp01((float)(data.experience - currentThreshold) / (nextThreshold - currentThreshold)), 7f);
         }
     }
 }

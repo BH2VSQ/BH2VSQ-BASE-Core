@@ -7,6 +7,7 @@ namespace BH2VSQ.Base
     public class TeleportManager : UdonSharpBehaviour
     {
         public AccessManager access;
+        public PlayerAreaTracker tracker;
         public Transform pointRoot;
         public TeleportPoint[] points;
         public AccessResult lastResult;
@@ -54,6 +55,11 @@ namespace BH2VSQ.Base
         {
             VRCPlayerApi target = VRCPlayerApi.GetPlayerById(playerId);
             if (!Utilities.IsValid(target) || target.isLocal) return false;
+            if (tracker != null && access != null)
+            {
+                TeleportPoint area = ById(tracker.AreaForPlayer(playerId));
+                if (area != null && access.CheckPointAccess(area) != AccessResult.Allowed) return false;
+            }
             Vector3 position = target.GetPosition();
             Networking.LocalPlayer.TeleportTo(position + target.GetRotation() * Vector3.back, target.GetRotation());
             return true;

@@ -1,18 +1,17 @@
 # 配置说明
 
-## 新增位置或楼层
+## 位置与楼层
 
-将 `Prefabs/Teleport/BH2VSQ_TeleportPoint.prefab` 或现有点复制到核心的 `Teleport` 子节点。给新点设置唯一 `locationId`，填写 `locationName` / `chineseName`、`floorId`、`floorName` / `chineseFloorName`、`requiredRank` 和 `xpMultiplier`。点的 Transform 是传送目的地；按实际空间调整子物体 `AreaTrigger` 的碰撞体。
+将 `Prefabs/Teleport/BH2VSQ_TeleportPoint.prefab` 或现有点复制到核心的 `Teleport` 子节点。每个点设置唯一 `locationId`、中文 `chineseName`、`floorId`、中文 `chineseFloorName`、`requiredRank`、`xpMultiplier` 和目的地 Transform。旧的英文名称字段保留供旧世界数据迁移，界面只显示中文。勾选 `tabVisible` 才在传送页列出；`radioDutyArea` 标记值守区。
 
-勾选 `tabVisible` 才在传送页显示。用 `radioDutyArea` 标记值守区。全场景只能有一个 `isSafeFallback` 安全返回点。新楼层只需使用新的 `floorId`；同楼层的所有点须使用一致的楼层名称。楼层状态同步到该楼层各点。传送页与管理员页分页显示，位置数量不固定。增删点后运行验证器。
+**当前位置由区域碰撞体判定。** 调整每个点的 `AreaTrigger/BoxCollider`，勾选 `isTrigger`，让房间、走廊和出生区域被适当覆盖。系统每 0.75 秒检查本地玩家是否位于某个区域体积内，并同步位置。离开全部已配置区域时显示“未知”，人数统计也不再把该玩家计入旧区域。重叠区域取体积较小的一个。传送页每秒更新各点人数和当前所在点高亮。新增楼层只需新 `floorId`；运行时扫描核心下的点。`DefaultLocationDatabase.asset` 只是重新生成时使用的初始种子，不会覆盖已放入场景的实例。
 
-`Data/Default/DefaultLocationDatabase.asset` 是首次生成种子，默认包含 B3、B2、B1、1F 至 7F 与屋顶共 14 个位置，不是运行时目录。它的修改不会覆盖已有场景实例。`Data/Localization/DefaultLocalization.asset` 包含中英文界面文本；玩家可切换语言并保存偏好。
+核心根节点的 `BaseWorldSystem.returnUnauthorizedPlayersToSafePoint` 默认关闭：进入无权限区域不会被自动传回。若要启用，先将一个游客可达点标为 `isSafeFallback`，再在场景实例上勾选此选项。启用后，进入无权限点会传至安全点；找不到安全点时使用世界出生点。传送按钮始终执行权限检查。
 
-## 核心组件
+## 请求与认证
 
-- `Authentication/TOTPAuthManager`：成员和管理员 Base32 密钥应不同；空值禁用对应等级。六位 HMAC-SHA1 TOTP，30 秒周期，允许前后各一个周期。
-- `Teleport/TeleportRequestManager`：默认 15 秒超时。共享单个同步请求槽；类型 0 是请求者传向目标，类型 1 是目标传向请求者。
-- `Admin/BroadcastManager`：普通、重要、紧急广播默认持续 8、20、120 秒。八槽同步环保存内容与过期时间，各客户端独立排队显示；紧急广播由本地用户关闭。
-- `UI/NotificationLayer`：跟随本地视角；主菜单是独立的世界空间画布。
+`Teleport/TeleportRequestManager.timeoutSeconds` 控制申请有效期，默认配置为 30 秒；旧场景实例可能保留原值。管理器可同时保存最多 16 条未过期请求，申请页每行显示发起者、发起者位置，以及绿色同意和红色拒绝按钮。收到请求时玩家会看到“按住 Tab 前往请求页”的短提示；发起者会收到结果提示。请求类型 0 为发起者传向接收者，类型 1 为邀请接收者传向发起者。
 
-`PlayerDataManager` 等待 `OnPlayerRestored` 后读写经验、在线时长、语言和通知偏好。每 30 秒按当前点的经验倍率累计经验。登录等级是本地会话，重新加入后回到游客；同步等级及经验不构成可信权限。共享的玩家列表、区域、楼层、请求及广播在多人并发写入时可能互相覆盖，详见[安全边界](SECURITY.md)。
+在**场景实例**的 `Authentication/TOTPAuthManager` 填写不同的成员和管理员 Base32 密钥；空值禁用对应等级。六位 HMAC-SHA1 TOTP 使用 30 秒周期，允许前后各一个周期。登录等级属于本地会话，重新加入后回到游客。`PlayerDataManager` 在 `OnPlayerRestored` 后读取经验和游戏时长，每 30 秒按当前位置倍率累计经验。界面只显示中文，旧语言偏好不会影响显示。
+
+共享的玩家区域、楼层和请求数组在多人并发写入时仍需多客户端压力测试，详见[安全边界](SECURITY.md)。

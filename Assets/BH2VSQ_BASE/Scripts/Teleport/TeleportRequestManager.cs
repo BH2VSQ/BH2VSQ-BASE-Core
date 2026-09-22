@@ -7,43 +7,53 @@ namespace BH2VSQ.Base
     [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class TeleportRequestManager : UdonSharpBehaviour
     {
+        public const int Capacity = 16;
         public TeleportManager teleport;
         public RequestPanel panel;
-        public float timeoutSeconds = BaseConstants.RequestTimeout;
-        [UdonSynced] private int requestId;
-        [UdonSynced] private int requesterId;
-        [UdonSynced] private int targetId;
-        [UdonSynced] private int requestType; // 0: go to target, 1: invite target.
-        [UdonSynced] private int requestState; // 1 pending, 2 accepted, 3 rejected.
-        [UdonSynced] private long expiryTicks;
-        private int handledId;
+        public float timeoutSeconds = 30f;
+        [UdonSynced] public int[] requestIds = new int[Capacity];
+        [UdonSynced] public int[] requesterIds = new int[Capacity];
+        [UdonSynced] public int[] targetIds = new int[Capacity];
+        [UdonSynced] public int[] requestTypes = new int[Capacity];
+        [UdonSynced] public int[] states = new int[Capacity]; // 1 pending, 2 accepted, 3 rejected.
+        [UdonSynced] public long[] expiryTicks = new long[Capacity];
+        [UdonSynced] private int nextRequestId;
+        private int[] seenIds = new int[Capacity];
+        private int[] seenStates = new int[Capacity];
 
         private void Start() { SendCustomEventDelayedSeconds("Tick", 1f); }
 
         public void Tick()
         {
-            if (requestState == 1 && Utilities.IsValid(Networking.LocalPlayer) && targetId == Networking.LocalPlayer.playerId)
-            {
-                long remaining = expiryTicks - Networking.GetNetworkDateTime().Ticks;
-                if (remaining <= 0) { if (panel != null) panel.Hide(); }
-                else if (panel != null) panel.SetSeconds((int)(remaining / 10000000L) + 1);
-            }
+            Refresh();
             SendCustomEventDelayedSeconds("Tick", 1f);
         }
 
         public bool Send(int playerId, int type)
         {
-            if (!Utilities.IsValid(Networking.LocalPlayer) || !Utilities.IsValid(VRCPlayerApi.GetPlayerById(playerId))) return false;
-            if (requestState == 1 && Networking.GetNetworkDateTime().Ticks < expiryTicks) return false;
-            Networking.SetOwner(Networking.LocalPlayer, gameObject);
-            requestId++;
-            requesterId = Networking.LocalPlayer.playerId;
-            targetId = playerId;
-            requestType = type;
-            requestState = 1;
-            expiryTicks = Networking.GetNetworkDateTime().Ticks + (long)(timeoutSeconds * 10000000L);
-            handledId = requestId;
+            VRCPlayerApi local = Networking.LocalPlayer;
+            if (!Utilities.IsValid(local) || playerId == local.playerId || !Utilities.IsValid(VRCPlayerApi.GetPlayerById(playerId))) return false;
+            long now = Networking.GetNetworkDateTime().Ticks;
+            int slot = -1;
+            for (int i = 0; i < Capacity; i++)
+            {
+                if (states[i] == 1 && expiryTicks[i] > now && requesterIds[i] == local.playerId && targetIds[i] == playerId && requestTypes[i] == type) return false;
+                if (slot < 0 && (states[i] != 1 || expiryTicks[i] <= now)) slot = i;
+            }
+            if (slot < 0) return false;
+            Networking.SetOwner(local, gameObject);
+            nextRequestId++;
+            if (nextRequestId <= 0) nextRequestId = 1;
+            requestIds[slot] = nextRequestId;
+            requesterIds[slot] = local.playerId;
+            targetIds[slot] = playerId;
+            requestTypes[slot] = type;
+            states[slot] = 1;
+            expiryTicks[slot] = now + (long)(timeoutSeconds * 10000000L);
+            seenIds[slot] = nextRequestId;
+            seenStates[slot] = 1;
             RequestSerialization();
+            if (panel != null) panel.ShowNotice("传送请求已发送");
             return true;
         }
 
@@ -51,35 +61,54 @@ namespace BH2VSQ.Base
 
         public void Refresh()
         {
-            if (!Utilities.IsValid(Networking.LocalPlayer)) return;
-            if (requestState == 1 && targetId == Networking.LocalPlayer.playerId && requestId != handledId && Networking.GetNetworkDateTime().Ticks < expiryTicks)
+            VRCPlayerApi local = Networking.LocalPlayer;
+            if (!Utilities.IsValid(local)) return;
+            long now = Networking.GetNetworkDateTime().Ticks;
+            for (int i = 0; i < Capacity; i++)
             {
-                handledId = requestId;
-                if (panel != null) panel.Show(VRCPlayerApi.GetPlayerById(requesterId), requestType);
+                int id = requestIds[i];
+                if (id == 0 || (requesterIds[i] != local.playerId && targetIds[i] != local.playerId)) continue;
+                int state = states[i];
+                if (state == 1 && expiryTicks[i] <= now) state = 4;
+                if (seenIds[i] == id && seenStates[i] == state) continue;
+                seenIds[i] = id;
+                seenStates[i] = state;
+                if (state == 1 && targetIds[i] == local.playerId)
+                {
+                    if (panel != null) panel.ShowNotice("收到传送请求 · 按住 Tab 前往请求页处理");
+                }
+                else if (state == 2)
+                {
+                    if (panel != null) panel.ShowNotice("传送请求已同意");
+                    if (teleport != null)
+                    {
+                        if (requestTypes[i] == 0 && requesterIds[i] == local.playerId) teleport.ToPlayer(targetIds[i]);
+                        if (requestTypes[i] == 1 && targetIds[i] == local.playerId) teleport.ToPlayer(requesterIds[i]);
+                    }
+                }
+                else if (state == 3 && panel != null) panel.ShowNotice("传送请求已拒绝");
+                else if (state == 4 && requesterIds[i] == local.playerId && panel != null) panel.ShowNotice("传送请求已过期");
             }
-            else if (requestState == 2 && requesterId == Networking.LocalPlayer.playerId && requestId == handledId && requestType == 0)
-            {
-                if (teleport != null) teleport.ToPlayer(targetId);
-                handledId = -requestId;
-            }
-            else if (requestState == 2 && targetId == Networking.LocalPlayer.playerId && requestId == handledId && requestType == 1)
-            {
-                if (teleport != null) teleport.ToPlayer(requesterId);
-                handledId = -requestId;
-            }
-            if ((requestState != 1 || Networking.GetNetworkDateTime().Ticks >= expiryTicks) && panel != null) panel.Hide();
+            if (panel != null) panel.Refresh();
         }
 
-        public void Accept() { Complete(2); }
-        public void Reject() { Complete(3); }
-        private void Complete(int state)
+        public void Accept(int id) { Complete(id, 2); }
+        public void Reject(int id) { Complete(id, 3); }
+
+        private void Complete(int id, int state)
         {
-            if (!Utilities.IsValid(Networking.LocalPlayer) || targetId != Networking.LocalPlayer.playerId || requestState != 1) return;
-            if (Networking.GetNetworkDateTime().Ticks >= expiryTicks) return;
-            Networking.SetOwner(Networking.LocalPlayer, gameObject);
-            requestState = state;
-            RequestSerialization();
-            Refresh();
+            VRCPlayerApi local = Networking.LocalPlayer;
+            if (!Utilities.IsValid(local)) return;
+            long now = Networking.GetNetworkDateTime().Ticks;
+            for (int i = 0; i < Capacity; i++)
+            {
+                if (requestIds[i] != id || targetIds[i] != local.playerId || states[i] != 1 || expiryTicks[i] <= now) continue;
+                Networking.SetOwner(local, gameObject);
+                states[i] = state;
+                RequestSerialization();
+                Refresh();
+                return;
+            }
         }
     }
 }

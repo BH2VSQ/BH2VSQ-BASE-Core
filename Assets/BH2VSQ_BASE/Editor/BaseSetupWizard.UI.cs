@@ -9,7 +9,6 @@ using UnityEditor.Events;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using VRC.SDKBase;
 using VRC.SDK3.Components;
 
 namespace BH2VSQ.Base.Editor
@@ -38,68 +37,62 @@ namespace BH2VSQ.Base.Editor
             return rect;
         }
 
-        private static TMP_Text Text(Transform parent, string name, string value, float x, float y, float width, float height, int size = 24, LocalizationManager localization = null, int localizationKey = -1)
+        private static TMP_Text Text(Transform parent, string name, string value, float x, float y, float width, float height, int size = 22)
         {
             RectTransform rect = Rect(parent, name, x, y, width, height);
             TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
-            text.text = value; text.fontSize = size; text.color = new Color(.78f, .95f, 1f);
+            text.text = value;
+            text.fontSize = size;
+            text.color = new Color(.82f, .95f, 1f);
             text.raycastTarget = false;
             text.alignment = TextAlignmentOptions.MidlineLeft;
-            text.enableWordWrapping = true;
+            text.enableWordWrapping = false;
             TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(Root + "/Fonts/BH2VSQ_UI.asset");
             if (font == null) font = TMP_Settings.defaultFontAsset;
             if (font == null) font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Packages/com.unity.textmeshpro/Package Resources/Fonts & Materials/LiberationSans SDF.asset");
             if (font != null) text.font = font;
-            if (localization != null && localizationKey >= 0)
-            {
-                LocalizedText localized = text.gameObject.AddUdonSharpComponent<LocalizedText>();
-                localized.localization = localization; localized.target = text; localized.key = localizationKey;
-            }
             return text;
         }
 
-        private static TMP_InputField Input(Transform parent, string name, float x, float y, float width, float height, string hint, LocalizationManager localization = null, int localizationKey = -1)
+        private static TMP_InputField Input(Transform parent, string name, float x, float y, float width, float height, string hint)
         {
-            RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.18f, .22f, .27f, .95f));
+            RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.02f, .15f, .26f, .95f));
             TMP_InputField input = rect.gameObject.AddComponent<TMP_InputField>();
             rect.GetComponent<Image>().raycastTarget = true;
             input.navigation = new Navigation { mode = Navigation.Mode.None };
+            input.characterLimit = 6;
             RectTransform viewport = Rect(rect, "Text Area", 12, -5, width - 24, height - 10);
             viewport.gameObject.AddComponent<RectMask2D>();
-            TMP_Text text = Text(viewport, "Text", "", 0, 0, width - 24, height - 10, 21);
-            TMP_Text placeholder = Text(viewport, "Placeholder", hint, 0, 0, width - 24, height - 10, 21, localization, localizationKey);
-            placeholder.color = new Color(.65f, .7f, .75f);
+            TMP_Text text = Text(viewport, "Text", "", 0, 0, width - 24, height - 10, 19);
+            TMP_Text placeholder = Text(viewport, "Placeholder", hint, 0, 0, width - 24, height - 10, 19);
+            placeholder.color = new Color(.42f, .69f, .78f);
             input.textViewport = viewport;
             input.textComponent = (TextMeshProUGUI)text;
             input.placeholder = (TextMeshProUGUI)placeholder;
             return input;
         }
 
-        private static UIButtonAction Button(Transform parent, string name, string label, int action, int value, float x, float y, float width, float height, LocalizationManager localization = null, int localizationKey = -1)
+        private static UIButtonAction Button(Transform parent, string name, string label, int action, int value, float x, float y, float width, float height)
         {
-            RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.02f, .35f, .62f, .74f));
+            RectTransform rect = Panel(parent, name, x, y, width, height, new Color(.02f, .27f, .43f, .9f));
             Button button = rect.gameObject.AddComponent<Button>();
             rect.GetComponent<Image>().raycastTarget = true;
             button.navigation = new Navigation { mode = Navigation.Mode.None };
             ColorBlock colors = button.colors;
-            colors.highlightedColor = new Color(.08f, .7f, .92f, .95f);
-            colors.pressedColor = new Color(.02f, .48f, .72f, .85f);
+            colors.highlightedColor = new Color(.12f, .72f, .9f, 1f);
+            colors.pressedColor = new Color(.03f, .45f, .65f, 1f);
             button.colors = colors;
-            TMP_Text text = Text(rect, "Label", label, 10, -3, width - 20, height - 6, 19);
+            TMP_Text text = Text(rect, "Label", label, 8, -2, width - 16, height - 4, 18);
             text.alignment = TextAlignmentOptions.Center;
-            if (localization != null && localizationKey >= 0)
-            {
-                LocalizedText localized = text.gameObject.AddUdonSharpComponent<LocalizedText>();
-                localized.localization = localization; localized.target = text; localized.key = localizationKey;
-            }
             UIButtonAction handler = rect.gameObject.AddUdonSharpComponent<UIButtonAction>();
-            handler.action = action; handler.value = value;
+            handler.action = action;
+            handler.value = value;
             var backing = UdonSharpEditorUtility.GetBackingUdonBehaviour(handler);
             UnityEventTools.AddStringPersistentListener(button.onClick, backing.SendCustomEvent, "Click");
             return handler;
         }
 
-        private static Canvas Canvas(Transform parent, string name, Vector3 offset, int order)
+        private static Canvas Canvas(Transform parent, string name, Vector3 offset, int order, bool interactive)
         {
             RectTransform rect = Rect(parent, name, 0, 0, 900, 650);
             rect.pivot = new Vector2(.5f, .5f);
@@ -110,100 +103,133 @@ namespace BH2VSQ.Base.Editor
             canvas.overrideSorting = true;
             canvas.sortingOrder = order;
             rect.gameObject.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 50;
-            rect.gameObject.AddComponent<GraphicRaycaster>();
-            rect.gameObject.AddComponent<VRCUiShape>();
-            BoxCollider collider = rect.gameObject.GetComponent<BoxCollider>();
-            if (collider == null) collider = rect.gameObject.AddComponent<BoxCollider>();
-            collider.size = new Vector3(900f, 650f, 1f);
+            if (interactive)
+            {
+                rect.gameObject.AddComponent<GraphicRaycaster>();
+                rect.gameObject.AddComponent<VRCUiShape>();
+                BoxCollider collider = rect.gameObject.GetComponent<BoxCollider>();
+                if (collider == null) collider = rect.gameObject.AddComponent<BoxCollider>();
+                collider.size = new Vector3(900f, 650f, 1f);
+            }
             LocalCanvasFollower follower = rect.gameObject.AddUdonSharpComponent<LocalCanvasFollower>();
             follower.target = rect;
             follower.offset = offset;
             return canvas;
         }
 
+        private static UIButtonAction TabButton(Transform parent, string name, string label, string icon, int action, float x, Image[] backgrounds, Image[] indicators, TMP_Text[] labels, int index)
+        {
+            UIButtonAction button = Button(parent, name, label, action, 0, x, -144, 200, 44);
+            backgrounds[index] = button.GetComponent<Image>();
+            TMP_Text text = button.GetComponentInChildren<TMP_Text>();
+            RectTransform textRect = text.GetComponent<RectTransform>();
+            textRect.anchoredPosition = new Vector2(50, -2);
+            textRect.sizeDelta = new Vector2(140, 40);
+            text.alignment = TextAlignmentOptions.MidlineLeft;
+            labels[index] = text;
+            RectTransform iconRoot = Panel(button.transform, "ActiveIcon", 14, -10, 28, 24, new Color(.18f, .39f, .51f));
+            indicators[index] = iconRoot.GetComponent<Image>();
+            Text(iconRoot, "Icon", icon, 0, 0, 28, 24, 19).alignment = TextAlignmentOptions.Center;
+            return button;
+        }
+
         private static void BuildUI(Transform parent, BaseWorldSystem world, PlayerRegistry registry, PlayerDataManager data,
             PlayerAreaTracker tracker, FloorManager floors, AreaManager areas, PermissionManager permission,
             TOTPAuthManager auth, TeleportManager teleport, TeleportRequestManager requests, RadioDutyManager radio,
-            AreaPopulationManager population, AdminManager admin, FloorAdminManager floorAdmin, BroadcastManager broadcast,
-            LocalizationManager localization)
+            AreaPopulationManager population, AdminManager admin, FloorAdminManager floorAdmin, LocalizationManager localization)
         {
             GameObject eventSystem = Group(parent, "EventSystem");
             eventSystem.AddComponent<EventSystem>();
             eventSystem.AddComponent<StandaloneInputModule>();
-            Canvas mainCanvas = Canvas(parent, "MainCanvas", new Vector3(-.5f, -.05f, 1.45f), 1);
+            Canvas mainCanvas = Canvas(parent, "MainCanvas", new Vector3(-.5f, -.05f, 1.45f), 1, true);
             world.menuCanvas = mainCanvas.gameObject;
             world.menuFollower = mainCanvas.GetComponent<LocalCanvasFollower>();
             world.menuCanvasGroup = mainCanvas.gameObject.AddComponent<CanvasGroup>();
             world.menuCanvasGroup.alpha = world.menuOpacity;
-            RectTransform menuRoot = Panel(mainCanvas.transform, "TabMenu", 0, 0, 900, 650, new Color(.015f, .1f, .23f, .72f));
+            RectTransform menuRoot = Panel(mainCanvas.transform, "TabMenu", 0, 0, 900, 650, new Color(.008f, .055f, .12f, .82f));
+            Panel(menuRoot, "TopAccent", 0, 0, 900, 3, new Color(.12f, .83f, 1f));
             TabMenuController menu = menuRoot.gameObject.AddUdonSharpComponent<TabMenuController>();
-            menu.permission = permission; world.menu = menu;
-            Text(menuRoot, "Header", "BH2VSQ BASE", 20, -10, 860, 40, 32);
-            Panel(menuRoot, "HologramAccent", 20, -98, 860, 2, new Color(.1f, .78f, 1f, .8f));
-            Button(menuRoot, "PersonalTab", "Personal", 1, 0, 20, -55, 155, 38, localization, 0);
-            Button(menuRoot, "TeleportTab", "Teleport", 2, 0, 190, -55, 155, 38, localization, 1);
-            Button(menuRoot, "PlayersTab", "Players", 3, 0, 360, -55, 155, 38, localization, 2);
-            UIButtonAction adminTab = Button(menuRoot, "AdminTab", "Admin", 4, 0, 530, -55, 155, 38, localization, 3);
-            menu.adminTab = adminTab.gameObject;
+            menu.permission = permission;
+            world.menu = menu;
 
-            RectTransform personalRoot = Panel(menuRoot, "PersonalInfo", 20, -110, 860, 520, new Color(.08f, .16f, .23f, .95f));
-            PersonalInfoPanel personal = personalRoot.gameObject.AddUdonSharpComponent<PersonalInfoPanel>();
-            personal.output = Text(personalRoot, "Info", "Loading player data...", 20, -20, 500, 280, 24, localization, BaseText.Loading);
-            personal.data = data; personal.permission = permission; personal.tracker = tracker; personal.floors = floors; personal.areas = areas; personal.localization = localization;
-            RectTransform loginRoot = Panel(personalRoot, "PermissionLogin", 20, -310, 560, 155, new Color(.12f, .2f, .28f));
+            RectTransform header = Panel(menuRoot, "Header", 18, -14, 864, 112, new Color(.025f, .13f, .23f, .96f));
+            RectTransform infoRoot = Panel(header, "PersonalInfo", 10, -8, 515, 96, new Color(.025f, .18f, .28f, .9f));
+            PersonalInfoPanel personal = infoRoot.gameObject.AddUdonSharpComponent<PersonalInfoPanel>();
+            personal.nameText = Text(infoRoot, "PlayerName", "玩家", 14, -5, 250, 28, 24);
+            personal.rankText = Text(infoRoot, "Rank", "访客", 272, -5, 85, 28, 19);
+            personal.levelText = Text(infoRoot, "Level", "等级 1", 14, -38, 110, 27, 17);
+            personal.xpText = Text(infoRoot, "Experience", "经验 0 / 100", 130, -38, 175, 27, 17);
+            personal.timeText = Text(infoRoot, "PlayTime", "游戏时长 0小时 0分", 310, -38, 200, 27, 16);
+            RectTransform xpTrack = Panel(infoRoot, "ExperienceTrack", 14, -82, 485, 7, new Color(.01f, .09f, .16f));
+            personal.xpFill = Panel(xpTrack, "ExperienceFill", 0, 0, 485, 7, new Color(.14f, .9f, 1f));
+            personal.data = data;
+            personal.permission = permission;
+            personal.tracker = tracker;
+            personal.floors = floors;
+            personal.areas = areas;
+            personal.localization = localization;
+            menu.header = personal;
+
+            RectTransform loginRoot = Panel(header, "PermissionLogin", 535, -8, 315, 96, new Color(.018f, .1f, .2f, .94f));
             PermissionLoginPanel login = loginRoot.gameObject.AddUdonSharpComponent<PermissionLoginPanel>();
-            login.loginRoot = loginRoot.gameObject; login.auth = auth; login.menu = menu;
-            login.codeInput = Input(loginRoot, "TOTP Code", 15, -15, 290, 43, "6-digit TOTP", localization, BaseText.TotpHint);
-            Button(loginRoot, "LoginButton", "Login", 10, 0, 320, -15, 120, 43, localization, 4);
-            login.feedback = Text(loginRoot, "LoginStatus", "Visitor", 15, -75, 480, 45, 18, localization, BaseText.Visitor);
+            login.codeInput = Input(loginRoot, "TOTP Code", 12, -27, 200, 42, "输入六位验证码");
+            Button(loginRoot, "LoginButton", "确认", 10, 0, 222, -27, 80, 42);
+            login.auth = auth;
+            login.menu = menu;
             login.localization = localization;
-            Button(personalRoot, "English", "English", 70, 0, 600, -30, 100, 38, localization, BaseText.English);
-            Button(personalRoot, "Chinese", "中文", 70, 1, 715, -30, 100, 38, localization, BaseText.Chinese);
-            Button(personalRoot, "ToggleTeleportConfirm", "Teleport confirm", 71, 0, 600, -85, 215, 38, localization, BaseText.TeleportConfirm);
-            Button(personalRoot, "ToggleNotifications", "Notifications", 72, 0, 600, -140, 215, 38, localization, BaseText.Notifications);
-            menu.personal = personalRoot.gameObject;
 
-            RectTransform teleportRoot = Panel(menuRoot, "Teleport", 20, -110, 860, 520, new Color(.08f, .16f, .23f, .95f));
+            menu.tabBackgrounds = new Image[4];
+            menu.tabIndicators = new Image[4];
+            menu.tabLabels = new TMP_Text[4];
+            TabButton(menuRoot, "TeleportTab", "传送", "↔", 2, 20, menu.tabBackgrounds, menu.tabIndicators, menu.tabLabels, 0);
+            TabButton(menuRoot, "PlayersTab", "玩家", "●", 3, 240, menu.tabBackgrounds, menu.tabIndicators, menu.tabLabels, 1);
+            TabButton(menuRoot, "RequestsTab", "申请", "◎", 5, 460, menu.tabBackgrounds, menu.tabIndicators, menu.tabLabels, 2);
+            menu.adminTab = TabButton(menuRoot, "AdminTab", "管理", "▦", 4, 680, menu.tabBackgrounds, menu.tabIndicators, menu.tabLabels, 3).gameObject;
+
+            RectTransform teleportRoot = Panel(menuRoot, "Teleport", 20, -198, 860, 430, new Color(.025f, .12f, .2f, .95f));
             TeleportPanel teleportPanel = teleportRoot.gameObject.AddUdonSharpComponent<TeleportPanel>();
-            teleportPanel.teleport = teleport; teleportPanel.data = data; teleportPanel.localization = localization;
-            teleportPanel.feedback = Text(teleportRoot, "TeleportStatus", "Select a destination", 20, -425, 800, 38, 18, localization, BaseText.SelectDestination);
-            Text(teleportRoot, "LocationTitle", "Locations", 20, -10, 300, 35, 24, localization, BaseText.Locations);
+            teleportPanel.teleport = teleport;
+            teleportPanel.tracker = tracker;
+            teleportPanel.population = population;
+            teleportPanel.localization = localization;
+            teleportPanel.feedback = Text(teleportRoot, "TeleportStatus", "请选择目的地", 20, -390, 390, 32, 17);
+            Text(teleportRoot, "LocationTitle", "传送目的地  /  区域人数", 20, -10, 500, 33, 22);
             teleportPanel.locationActions = new UIButtonAction[14];
             teleportPanel.locationLabels = new TMP_Text[14];
             teleportPanel.locationObjects = new GameObject[14];
             for (int i = 0; i < 14; i++)
             {
                 UIButtonAction item = Button(teleportRoot, "LocationItem_" + i, "", 20, 0,
-                    20 + (i / 7) * 400, -55 - (i % 7) * 51, 380, 44);
+                    20 + (i / 7) * 410, -52 - (i % 7) * 47, 390, 42);
                 teleportPanel.locationActions[i] = item;
                 teleportPanel.locationLabels[i] = item.GetComponentInChildren<TMP_Text>();
                 teleportPanel.locationObjects[i] = item.gameObject;
                 item.gameObject.SetActive(false);
             }
-            teleportPanel.previousButton = Button(teleportRoot, "PreviousLocations", "Previous", 26, 0, 20, -465, 150, 38, localization, BaseText.Previous).gameObject;
-            teleportPanel.pageLabel = Text(teleportRoot, "LocationPage", "Page 1 / 1", 360, -465, 170, 38, 18);
-            teleportPanel.nextButton = Button(teleportRoot, "NextLocations", "Next", 27, 0, 650, -465, 150, 38, localization, BaseText.Next).gameObject;
-            RectTransform confirmRoot = Panel(teleportRoot, "ConfirmTeleport", 170, -130, 520, 190, new Color(.04f, .1f, .16f, 1f));
-            teleportPanel.confirmRoot = confirmRoot.gameObject;
-            teleportPanel.confirmText = Text(confirmRoot, "Prompt", "Teleport?", 20, -18, 480, 60, 24, localization, BaseText.TeleportQuestion);
-            Button(confirmRoot, "Confirm", "Confirm", 22, 0, 50, -112, 170, 45, localization, BaseText.Confirm);
-            Button(confirmRoot, "Cancel", "Cancel", 23, 0, 300, -112, 170, 45, localization, BaseText.Cancel);
-            confirmRoot.gameObject.SetActive(false);
+            teleportPanel.previousButton = Button(teleportRoot, "PreviousLocations", "上一页", 26, 0, 490, -390, 105, 32).gameObject;
+            teleportPanel.pageLabel = Text(teleportRoot, "LocationPage", "1 / 1", 610, -390, 100, 32, 17);
+            teleportPanel.nextButton = Button(teleportRoot, "NextLocations", "下一页", 27, 0, 730, -390, 105, 32).gameObject;
             menu.teleport = teleportRoot.gameObject;
-            teleportRoot.gameObject.SetActive(false);
+            menu.teleportPanel = teleportPanel;
 
-            RectTransform playersRoot = Panel(menuRoot, "PlayerList", 20, -110, 860, 520, new Color(.08f, .16f, .23f, .95f));
+            RectTransform playersRoot = Panel(menuRoot, "PlayerList", 20, -198, 860, 430, new Color(.025f, .12f, .2f, .95f));
             PlayerListPanel playerList = playersRoot.gameObject.AddUdonSharpComponent<PlayerListPanel>();
-            playerList.registry = registry; playerList.tracker = tracker; playerList.data = data; playerList.radio = radio;
-            playerList.floors = floors; playerList.areas = areas; playerList.localization = localization;
-            playerList.output = Text(playersRoot, "Count", "Online: 0", 20, -10, 500, 38, 20, localization, BaseText.Online);
-            Button(playersRoot, "RefreshPlayers", "Refresh", 30, 0, 550, -10, 140, 38, localization, 9);
-            RectTransform viewport = Panel(playersRoot, "Viewport", 20, -55, 490, 420, new Color(.04f, .11f, .17f));
+            playerList.registry = registry;
+            playerList.tracker = tracker;
+            playerList.data = data;
+            playerList.radio = radio;
+            playerList.floors = floors;
+            playerList.areas = areas;
+            playerList.localization = localization;
+            playerList.output = Text(playersRoot, "Count", "在线玩家", 20, -10, 790, 33, 21);
+            RectTransform viewport = Panel(playersRoot, "Viewport", 20, -52, 490, 356, new Color(.012f, .08f, .14f));
             viewport.gameObject.AddComponent<RectMask2D>();
             ScrollRect scroll = viewport.gameObject.AddComponent<ScrollRect>();
-            scroll.horizontal = false; scroll.vertical = true;
+            scroll.horizontal = false;
+            scroll.vertical = true;
             RectTransform content = Rect(viewport, "Content", 0, 0, 470, 80 * 58);
-            scroll.viewport = viewport; scroll.content = content;
+            scroll.viewport = viewport;
+            scroll.content = content;
             playerList.rowTexts = new TMP_Text[BaseConstants.MaxPlayers];
             playerList.rowActions = new UIButtonAction[BaseConstants.MaxPlayers];
             playerList.rowObjects = new GameObject[BaseConstants.MaxPlayers];
@@ -216,105 +242,117 @@ namespace BH2VSQ.Base.Editor
                 playerList.rowTexts[i].fontSize = 16;
                 row.gameObject.SetActive(false);
             }
-            RectTransform detailRoot = Panel(playersRoot, "PlayerDetail", 525, -55, 310, 420, new Color(.12f, .21f, .29f));
+            RectTransform detailRoot = Panel(playersRoot, "PlayerDetail", 525, -52, 310, 356, new Color(.035f, .17f, .27f));
             PlayerDetailPanel detail = detailRoot.gameObject.AddUdonSharpComponent<PlayerDetailPanel>();
-            detail.output = Text(detailRoot, "DetailText", "Select a player", 10, -10, 290, 150, 22, localization, BaseText.SelectPlayer);
-            detail.tracker = tracker; detail.registry = registry; detail.floors = floors; detail.areas = areas; detail.localization = localization;
+            detail.output = Text(detailRoot, "DetailText", "请选择玩家", 12, -12, 286, 155, 19);
+            detail.tracker = tracker;
+            detail.registry = registry;
+            detail.floors = floors;
+            detail.areas = areas;
+            detail.localization = localization;
             playerList.detail = detail;
-            Button(detailRoot, "GoToPlayer", "Go to player", 32, 0, 15, -200, 280, 42, localization, BaseText.GoToPlayer);
-            Button(detailRoot, "InvitePlayer", "Invite player", 32, 1, 15, -255, 280, 42, localization, BaseText.InvitePlayer);
+            Button(detailRoot, "GoToPlayer", "申请传送至玩家", 32, 0, 15, -220, 280, 45);
+            Button(detailRoot, "InvitePlayer", "邀请玩家传送", 32, 1, 15, -280, 280, 45);
             menu.players = playersRoot.gameObject;
+            menu.playerPanel = playerList;
             playersRoot.gameObject.SetActive(false);
 
-            RectTransform adminRoot = Panel(menuRoot, "AdminPanel", 20, -110, 860, 520, new Color(.08f, .16f, .23f, .95f));
+            GameObject requestService = Group(parent, "RequestService");
+            RequestPanel requestPanel = requestService.AddUdonSharpComponent<RequestPanel>();
+            requestPanel.requests = requests;
+            requestPanel.tracker = tracker;
+            requestPanel.areas = areas;
+            requestPanel.localization = localization;
+            requests.panel = requestPanel;
+            login.notice = requestPanel;
+            Canvas noticeCanvas = Canvas(requestService.transform, "RequestNoticeCanvas", new Vector3(0f, .16f, 1f), 5, false);
+            RectTransform noticeBox = Panel(noticeCanvas.transform, "RequestNotice", 100, -40, 700, 66, new Color(.015f, .2f, .3f, .98f));
+            Panel(noticeBox, "NoticeAccent", 0, 0, 6, 66, new Color(.16f, .93f, 1f));
+            requestPanel.noticeText = Text(noticeBox, "NoticeText", "", 20, -10, 660, 46, 20);
+            requestPanel.noticeRoot = noticeCanvas.gameObject;
+            requestPanel.noticeFollower = noticeCanvas.GetComponent<LocalCanvasFollower>();
+            noticeCanvas.gameObject.SetActive(false);
+
+            RectTransform requestsRoot = Panel(menuRoot, "Requests", 20, -198, 860, 430, new Color(.025f, .12f, .2f, .95f));
+            requestPanel.root = requestsRoot.gameObject;
+            requestPanel.countText = Text(requestsRoot, "RequestCount", "待处理申请  0", 20, -10, 500, 34, 22);
+            requestPanel.emptyText = Text(requestsRoot, "Empty", "暂无待处理申请", 270, -185, 330, 44, 23);
+            requestPanel.rowObjects = new GameObject[5];
+            requestPanel.requesterTexts = new TMP_Text[5];
+            requestPanel.locationTexts = new TMP_Text[5];
+            requestPanel.acceptActions = new UIButtonAction[5];
+            requestPanel.rejectActions = new UIButtonAction[5];
+            for (int i = 0; i < 5; i++)
+            {
+                RectTransform row = Panel(requestsRoot, "RequestRow_" + i, 20, -57 - i * 61, 820, 54, new Color(.035f, .2f, .29f, .94f));
+                Panel(row, "RowAccent", 0, 0, 4, 54, new Color(.13f, .74f, .92f));
+                requestPanel.rowObjects[i] = row.gameObject;
+                requestPanel.requesterTexts[i] = Text(row, "Requester", "", 16, -6, 270, 42, 18);
+                requestPanel.locationTexts[i] = Text(row, "Location", "", 300, -6, 310, 42, 18);
+                requestPanel.locationTexts[i].alignment = TextAlignmentOptions.Center;
+                requestPanel.acceptActions[i] = Button(row, "Accept", "✓", 40, 0, 670, -6, 60, 42);
+                requestPanel.rejectActions[i] = Button(row, "Reject", "×", 41, 0, 742, -6, 60, 42);
+                requestPanel.acceptActions[i].GetComponent<Image>().color = new Color(.06f, .54f, .37f);
+                requestPanel.rejectActions[i].GetComponent<Image>().color = new Color(.68f, .16f, .19f);
+                row.gameObject.SetActive(false);
+            }
+            requestPanel.previousButton = Button(requestsRoot, "PreviousRequests", "上一页", 43, 0, 540, -386, 105, 33).gameObject;
+            requestPanel.pageText = Text(requestsRoot, "RequestPage", "1 / 1", 665, -386, 70, 33, 17);
+            requestPanel.nextButton = Button(requestsRoot, "NextRequests", "下一页", 44, 0, 735, -386, 105, 33).gameObject;
+            menu.requests = requestsRoot.gameObject;
+            menu.requestPanel = requestPanel;
+            requestsRoot.gameObject.SetActive(false);
+
+            RectTransform adminRoot = Panel(menuRoot, "AdminPanel", 20, -198, 860, 430, new Color(.025f, .12f, .2f, .95f));
             AdminPanel adminPanel = adminRoot.gameObject.AddUdonSharpComponent<AdminPanel>();
-            adminPanel.admin = admin; adminPanel.floorAdmin = floorAdmin; adminPanel.floors = floors;
-            adminPanel.population = population; adminPanel.radio = radio; adminPanel.areas = areas; adminPanel.localization = localization;
-            adminPanel.status = Text(adminRoot, "AdminStatus", "Admin only", 20, -10, 800, 55, 20, localization, BaseText.AdminOnly);
-            RectTransform floorAdminRoot = Panel(adminRoot, "FloorAdmin", 20, -75, 820, 125, new Color(.12f, .2f, .28f));
+            adminPanel.admin = admin;
+            adminPanel.floorAdmin = floorAdmin;
+            adminPanel.floors = floors;
+            adminPanel.population = population;
+            adminPanel.radio = radio;
+            adminPanel.areas = areas;
+            adminPanel.localization = localization;
+            adminPanel.status = Text(adminRoot, "AdminStatus", "仅管理员可用", 20, -8, 800, 36, 19);
+            RectTransform floorAdminRoot = Panel(adminRoot, "FloorAdmin", 20, -50, 820, 124, new Color(.035f, .17f, .27f));
             adminPanel.floorActions = new UIButtonAction[6];
             adminPanel.floorLabels = new TMP_Text[6];
             adminPanel.floorObjects = new GameObject[6];
-            adminPanel.previousFloorButton = Button(floorAdminRoot, "PreviousFloors", "Previous", 66, 0, 5, -5, 95, 40, localization, BaseText.Previous).gameObject;
+            adminPanel.previousFloorButton = Button(floorAdminRoot, "PreviousFloors", "◀", 66, 0, 5, -5, 85, 40).gameObject;
             for (int i = 0; i < 6; i++)
             {
-                UIButtonAction selector = Button(floorAdminRoot, "SelectFloor_" + i, "", 60, 0, 105 + i * 100, -5, 92, 40);
+                UIButtonAction selector = Button(floorAdminRoot, "SelectFloor_" + i, "", 60, 0, 95 + i * 102, -5, 98, 40);
                 adminPanel.floorActions[i] = selector;
                 adminPanel.floorLabels[i] = selector.GetComponentInChildren<TMP_Text>();
                 adminPanel.floorObjects[i] = selector.gameObject;
                 selector.gameObject.SetActive(false);
             }
-            adminPanel.nextFloorButton = Button(floorAdminRoot, "NextFloors", "Next", 67, 0, 710, -5, 100, 40, localization, BaseText.Next).gameObject;
-            Button(floorAdminRoot, "Open", "Open", 61, 0, 5, -60, 130, 38, localization, BaseText.Open);
-            Button(floorAdminRoot, "Reserved", "Reserved", 61, 1, 145, -60, 130, 38, localization, BaseText.Reserved);
-            Button(floorAdminRoot, "Maintenance", "Maintenance", 61, 2, 285, -60, 160, 38, localization, BaseText.Maintenance);
-            Button(floorAdminRoot, "ApplyFloor", "Apply state", 62, 0, 465, -60, 150, 38, localization, BaseText.ApplyState);
-            Button(adminRoot, "PlayerManagementTab", "Player Management", 65, 0, 20, -207, 190, 35, localization, BaseText.PlayerManagement);
-            Button(adminRoot, "PopulationTab", "Population", 63, 0, 225, -207, 150, 35, localization, BaseText.Population);
-            Button(adminRoot, "BroadcastTab", "Broadcast", 64, 0, 390, -207, 150, 35, localization, BaseText.Broadcast);
-            RectTransform populationRoot = Panel(adminRoot, "PopulationPanel", 20, -247, 820, 245, new Color(.12f, .2f, .28f));
+            adminPanel.nextFloorButton = Button(floorAdminRoot, "NextFloors", "▶", 67, 0, 714, -5, 100, 40).gameObject;
+            Button(floorAdminRoot, "Open", "开放", 61, 0, 5, -65, 130, 40);
+            Button(floorAdminRoot, "Reserved", "包场", 61, 1, 145, -65, 130, 40);
+            Button(floorAdminRoot, "Maintenance", "维护", 61, 2, 285, -65, 145, 40);
+            Button(floorAdminRoot, "ApplyFloor", "应用状态", 62, 0, 450, -65, 145, 40);
+            Button(adminRoot, "PlayerManagementTab", "玩家管理", 65, 0, 20, -186, 170, 35);
+            Button(adminRoot, "PopulationTab", "人数统计", 63, 0, 205, -186, 170, 35);
+            RectTransform populationRoot = Panel(adminRoot, "PopulationPanel", 20, -229, 820, 188, new Color(.035f, .17f, .27f));
             adminPanel.populationRoot = populationRoot.gameObject;
-            adminPanel.populationLeft = Text(populationRoot, "PopulationLeft", "", 15, -12, 390, 180, 18);
-            adminPanel.populationRight = Text(populationRoot, "PopulationRight", "", 420, -12, 390, 180, 18);
-            adminPanel.previousPopulationButton = Button(populationRoot, "PreviousPopulation", "Previous", 68, 0, 15, -198, 135, 35, localization, BaseText.Previous).gameObject;
-            adminPanel.nextPopulationButton = Button(populationRoot, "NextPopulation", "Next", 69, 0, 655, -198, 135, 35, localization, BaseText.Next).gameObject;
-            populationRoot.gameObject.SetActive(false);
-            RectTransform broadcastRoot = Panel(adminRoot, "BroadcastPanel", 20, -247, 820, 245, new Color(.12f, .2f, .28f));
-            adminPanel.broadcastRoot = broadcastRoot.gameObject;
-            BroadcastPanel broadcastPanel = broadcastRoot.gameObject.AddUdonSharpComponent<BroadcastPanel>();
-            broadcastPanel.manager = broadcast; broadcastPanel.localization = localization;
-            Text(broadcastRoot, "BroadcastTitle", "Broadcast", 15, -10, 300, 35, 24, localization, BaseText.Broadcast);
-            Button(broadcastRoot, "Normal", "Normal", 51, 0, 15, -50, 130, 38, localization, BaseText.Normal);
-            Button(broadcastRoot, "Important", "Important", 51, 1, 155, -50, 130, 38, localization, BaseText.Important);
-            Button(broadcastRoot, "Emergency", "Emergency", 51, 2, 295, -50, 150, 38, localization, BaseText.Emergency);
-            broadcastPanel.messageInput = Input(broadcastRoot, "Message", 15, -100, 620, 50, "Message (max 180 chars)", localization, BaseText.MessageHint);
-            broadcastPanel.messageInput.characterLimit = 180;
-            Button(broadcastRoot, "Send", "Send", 50, 0, 650, -100, 140, 50, localization, 5);
-            broadcastPanel.feedback = Text(broadcastRoot, "BroadcastStatus", "", 15, -165, 700, 42, 19);
+            adminPanel.populationLeft = Text(populationRoot, "PopulationLeft", "", 15, -12, 390, 130, 17);
+            adminPanel.populationRight = Text(populationRoot, "PopulationRight", "", 420, -12, 390, 130, 17);
+            adminPanel.previousPopulationButton = Button(populationRoot, "PreviousPopulation", "上一页", 68, 0, 15, -148, 125, 34).gameObject;
+            adminPanel.nextPopulationButton = Button(populationRoot, "NextPopulation", "下一页", 69, 0, 680, -148, 125, 34).gameObject;
             menu.admin = adminRoot.gameObject;
+            menu.adminPanel = adminPanel;
             adminRoot.gameObject.SetActive(false);
-
-            GameObject notificationLayer = Group(parent, "NotificationLayer");
-            BroadcastNotificationManager notification = notificationLayer.AddUdonSharpComponent<BroadcastNotificationManager>();
-            Canvas notificationCanvas = Canvas(notificationLayer.transform, "BroadcastCanvas", new Vector3(0f, .28f, 1.1f), 10);
-            BoxCollider notificationCollider = notificationCanvas.GetComponent<BoxCollider>();
-            notificationCollider.center = new Vector3(0f, 237.5f, 0f);
-            notificationCollider.size = new Vector3(800f, 155f, 1f);
-            RectTransform notificationRoot = Panel(notificationCanvas.transform, "BroadcastNotification", 50, -10, 800, 155, new Color(.26f, .12f, .08f, .97f));
-            notification.root = notificationCanvas.gameObject;
-            notification.title = Text(notificationRoot, "Title", "NOTICE", 15, -8, 560, 32, 25, localization, BaseText.Notice);
-            notification.messageText = Text(notificationRoot, "Message", "", 15, -43, 750, 68, 22);
-            notification.senderText = Text(notificationRoot, "Sender", "", 15, -116, 590, 30, 17);
-            Button(notificationRoot, "Close", "Close", 42, 0, 650, -112, 130, 34, localization, 6);
-            notification.audioSource = notificationLayer.AddComponent<AudioSource>();
-            notification.audioSource.playOnAwake = false;
-            notification.data = data; notification.localization = localization;
-            notification.normalSound = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/Broadcast_Normal.wav");
-            notification.importantSound = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/Broadcast_Important.wav");
-            notification.emergencySound = AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/Broadcast_Emergency.wav");
-            broadcast.notification = notification;
-            RequestPanel requestPanel = notificationLayer.AddUdonSharpComponent<RequestPanel>();
-            Canvas requestCanvas = Canvas(notificationLayer.transform, "RequestCanvas", new Vector3(0f, .05f, 1f), 11);
-            BoxCollider requestCollider = requestCanvas.GetComponent<BoxCollider>();
-            requestCollider.center = new Vector3(0f, 82.5f, 0f);
-            requestCollider.size = new Vector3(800f, 125f, 1f);
-            RectTransform requestRoot = Panel(requestCanvas.transform, "TeleportRequest", 50, -180, 800, 125, new Color(.07f, .24f, .3f, .98f));
-            requestPanel.root = requestCanvas.gameObject;
-            requestPanel.message = Text(requestRoot, "RequestText", "Teleport request", 15, -10, 570, 42, 20, localization, BaseText.TeleportRequest);
-            requestPanel.countdown = Text(requestRoot, "Countdown", "15s", 680, -10, 100, 42, 20);
-            requestPanel.requests = requests; requestPanel.localization = localization;
-            Button(requestRoot, "Accept", "Accept", 40, 0, 490, -67, 135, 38, localization, 7);
-            Button(requestRoot, "Reject", "Reject", 41, 0, 645, -67, 135, 38, localization, 8);
-            requests.panel = requestPanel;
-            notificationCanvas.gameObject.SetActive(false);
-            requestCanvas.gameObject.SetActive(false);
 
             foreach (UIButtonAction action in parent.GetComponentsInChildren<UIButtonAction>(true))
             {
-                action.menu = menu; action.login = login; action.teleport = teleportPanel;
-                action.players = playerList; action.detail = detail; action.requests = requests;
-                action.requestPanel = requestPanel; action.notification = notification;
-                action.admin = adminPanel; action.broadcast = broadcastPanel; action.data = data;
+                action.menu = menu;
+                action.login = login;
+                action.teleport = teleportPanel;
+                action.players = playerList;
+                action.detail = detail;
+                action.requests = requests;
+                action.requestPanel = requestPanel;
+                action.admin = adminPanel;
             }
             mainCanvas.gameObject.SetActive(false);
         }
@@ -323,18 +361,16 @@ namespace BH2VSQ.Base.Editor
         {
             string ui = Root + "/Prefabs/UI/";
             SavePart(core, "UI/MainCanvas/TabMenu", ui + "BH2VSQ_TabMenu.prefab");
-            SavePart(core, "UI/MainCanvas/TabMenu/PersonalInfo", ui + "BH2VSQ_PersonalInfo.prefab");
-            SavePart(core, "UI/MainCanvas/TabMenu/PersonalInfo/PermissionLogin", ui + "BH2VSQ_PermissionLogin.prefab");
+            SavePart(core, "UI/MainCanvas/TabMenu/Header/PersonalInfo", ui + "BH2VSQ_PersonalInfo.prefab");
+            SavePart(core, "UI/MainCanvas/TabMenu/Header/PermissionLogin", ui + "BH2VSQ_PermissionLogin.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/Teleport", ui + "BH2VSQ_Teleport.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/PlayerList", ui + "BH2VSQ_PlayerList.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/PlayerList/Viewport/Content/PlayerItem_0", ui + "BH2VSQ_PlayerListItem.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/PlayerList/PlayerDetail", ui + "BH2VSQ_PlayerDetail.prefab");
+            SavePart(core, "UI/MainCanvas/TabMenu/Requests", ui + "BH2VSQ_TeleportRequest.prefab");
+            SavePart(core, "UI/RequestService", ui + "BH2VSQ_RequestService.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/AdminPanel", ui + "BH2VSQ_AdminPanel.prefab");
             SavePart(core, "UI/MainCanvas/TabMenu/AdminPanel/FloorAdmin", ui + "BH2VSQ_FloorAdmin.prefab");
-            SavePart(core, "UI/MainCanvas/TabMenu/AdminPanel/BroadcastPanel", ui + "BH2VSQ_BroadcastPanel.prefab");
-            SavePart(core, "UI/NotificationLayer", ui + "BH2VSQ_BroadcastNotificationManager.prefab");
-            SavePart(core, "UI/NotificationLayer/BroadcastCanvas/BroadcastNotification", ui + "BH2VSQ_BroadcastNotification.prefab");
-            SavePart(core, "UI/NotificationLayer/RequestCanvas/TeleportRequest", ui + "BH2VSQ_TeleportRequest.prefab");
             SavePart(core, "Floor/FloorManager", Root + "/Prefabs/Floor/BH2VSQ_FloorController.prefab");
             SavePart(core, "Floor/AreaManager", Root + "/Prefabs/Floor/BH2VSQ_AreaController.prefab");
             SavePart(core, "Teleport/Point_1F_Living", Root + "/Prefabs/Teleport/BH2VSQ_TeleportPoint.prefab");

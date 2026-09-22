@@ -18,7 +18,10 @@ namespace BH2VSQ.Base
         public LocalCanvasFollower menuFollower;
         public CanvasGroup menuCanvasGroup;
         [Range(0f, 1f)] public float menuOpacity = .86f;
+        public bool returnUnauthorizedPlayersToSafePoint;
         public bool ready;
+        private bool vrMenuOpen;
+        private float nextUiRefresh;
 
         private void Start()
         {
@@ -36,17 +39,29 @@ namespace BH2VSQ.Base
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Tab)) ToggleMenu();
+            bool visible = Input.GetKey(KeyCode.Tab) || vrMenuOpen;
+            if (menuCanvas != null && menuCanvas.activeSelf != visible) SetMenuVisible(visible);
+            if (visible && Time.time >= nextUiRefresh)
+            {
+                nextUiRefresh = Time.time + 1f;
+                if (menu != null) menu.RefreshVisible();
+            }
         }
 
         public void ToggleMenu()
         {
+            vrMenuOpen = !vrMenuOpen;
+            SetMenuVisible(Input.GetKey(KeyCode.Tab) || vrMenuOpen);
+        }
+
+        private void SetMenuVisible(bool show)
+        {
             if (menuCanvas == null) return;
-            bool show = !menuCanvas.activeSelf;
             menuCanvas.SetActive(show);
             if (!show) return;
             if (menuFollower != null) menuFollower.Place();
-            if (menu != null) menu.Refresh();
+            if (menu != null) menu.RefreshVisible();
+            nextUiRefresh = Time.time + 1f;
         }
 
         public override void OnPlayerJoined(VRCPlayerApi player)

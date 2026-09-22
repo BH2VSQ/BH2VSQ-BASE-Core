@@ -13,6 +13,4 @@ MonoBehaviour:
   m_Name: DefaultBaseConfig
   m_EditorClassIdentifier: 
   locations: {fileID: 11400000, guid: 9ff2f6b927212364fb1a29d61fb520d9, type: 2}
-  requestTimeoutSeconds: 15
-  broadcastNormalSeconds: 8
-  broadcastImportantSeconds: 20
+  requestTimeoutSeconds: 30

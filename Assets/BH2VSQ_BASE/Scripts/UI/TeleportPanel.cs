@@ -1,17 +1,17 @@
 using UdonSharp;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BH2VSQ.Base
 {
     public class TeleportPanel : UdonSharpBehaviour
     {
         public TeleportManager teleport;
-        public PlayerDataManager data;
+        public PlayerAreaTracker tracker;
+        public AreaPopulationManager population;
         public LocalizationManager localization;
         public TMP_Text feedback;
-        public GameObject confirmRoot;
-        public TMP_Text confirmText;
         public UIButtonAction[] locationActions;
         public TMP_Text[] locationLabels;
         public GameObject[] locationObjects;
@@ -19,8 +19,6 @@ namespace BH2VSQ.Base
         public GameObject nextButton;
         public TMP_Text pageLabel;
         private int page;
-        private int pendingId;
-        private bool hasPending;
 
         public void Refresh()
         {
@@ -37,7 +35,11 @@ namespace BH2VSQ.Base
                 locationObjects[i].SetActive(point != null);
                 if (point == null) continue;
                 locationActions[i].value = point.locationId;
-                locationLabels[i].text = point.DisplayName(localization.Language());
+                bool current = tracker != null && tracker.localAreaId == point.locationId;
+                int count = population == null ? 0 : population.Count(point.locationId);
+                locationLabels[i].text = point.DisplayName(1) + "  ·  " + count + " 人" + (current ? "  ◆ 当前" : "");
+                Image background = locationObjects[i].GetComponent<Image>();
+                if (background != null) background.color = current ? new Color(.06f, .69f, .84f, .96f) : new Color(.02f, .23f, .38f, .83f);
             }
             if (previousButton != null) previousButton.SetActive(page > 0);
             if (nextButton != null) nextButton.SetActive(page + 1 < pages);
@@ -71,31 +73,7 @@ namespace BH2VSQ.Base
 
         public void ToLocation(int id)
         {
-            if (data != null && data.teleportConfirm) { Pending(id); return; }
             SetFeedback(teleport != null && teleport.ToLocation(id));
-        }
-
-        private void Pending(int id)
-        {
-            pendingId = id;
-            hasPending = true;
-            if (confirmRoot != null) confirmRoot.SetActive(true);
-            TeleportPoint point = teleport == null ? null : teleport.ById(id);
-            if (confirmText != null && localization != null)
-                confirmText.text = localization.Get(BaseText.Teleport) + " " + (point == null ? id.ToString() : point.DisplayName(localization.Language())) + "?";
-        }
-
-        public void Confirm()
-        {
-            if (!hasPending) return;
-            SetFeedback(teleport != null && teleport.ToLocation(pendingId));
-            Cancel();
-        }
-
-        public void Cancel()
-        {
-            hasPending = false;
-            if (confirmRoot != null) confirmRoot.SetActive(false);
         }
 
         private void SetFeedback(bool ok)

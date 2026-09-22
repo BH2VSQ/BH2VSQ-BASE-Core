@@ -5,16 +5,13 @@ namespace BH2VSQ.Base
 {
     public class LocalizationManager : UdonSharpBehaviour
     {
-        public PlayerDataManager data;
-        public string[] english;
         public string[] chinese;
 
-        public int Language() { return data == null ? 0 : data.language; }
+        public int Language() { return 1; }
 
         public string Get(int key)
         {
-            string[] table = Language() == 1 ? chinese : english;
-            return table != null && key >= 0 && key < table.Length ? table[key] : "?";
+            return chinese != null && key >= 0 && key < chinese.Length ? chinese[key] : "?";
         }
 
         public string RankName(BaseRank rank)

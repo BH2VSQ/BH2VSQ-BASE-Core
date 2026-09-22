@@ -1,81 +1,57 @@
 # 预制组件用途与实际场景配置
 
-本文以已导入 `BH2VSQ_BASE_Core.unitypackage` 的 VRChat Worlds 项目为前提。**实际世界通常只需放入一个 `Prefabs/Core/BH2VSQ_BASE_Core.prefab`。** 它已包含运行所需的管理器、菜单、通知、请求界面和初始传送点。不要再把下表的零件预制体逐个叠加到同一场景，否则可能出现重复管理器、重复同步对象与冲突的 UI。
+正式世界只需放入**一个** `Prefabs/Core/BH2VSQ_BASE_Core.prefab`。它包含管理器、中文控制台、请求提示与初始传送点。下面的零件预制体供改造核心或自定义界面使用；不要把整套零件再次放入同一场景，否则会产生重复管理器与同步对象。
 
-## 应该放入哪些对象
+## 最小安装
 
-| 场景用途 | 应放入的对象 | 说明 |
+1. 导入资源包，在已有 VRChat 世界场景中放入一个核心实例；确保场景只有一个有效 `EventSystem`。核心自带一个，旧场景若已有一个，请禁用或移除重复的实例。
+2. 将核心 `Teleport/Point_*` 放到实际房间，设置中文地点/楼层名、权限、目的地和 `AreaTrigger/BoxCollider`。碰撞体应覆盖玩家能行走的实际区域；未覆盖处显示“未知”。新增地点时在同一 `Teleport` 子节点复制 `BH2VSQ_TeleportPoint.prefab`，设置唯一 `locationId`，无需修改代码。重叠区域优先取较小体积。
+3. 在核心根节点 Inspector 设置 `BaseWorldSystem.menuOpacity`（0～1）。桌面端**按住 Tab 显示、松开隐藏**；VR 玩家可通过世界交互按钮调用 `BaseWorldSystem.ToggleMenu`。核心的 `returnUnauthorizedPlayersToSafePoint` 默认关闭；若要自动传回，请先指定唯一游客可达的 `isSafeFallback` 点再开启。
+4. 仅在场景实例的 `Authentication/TOTPAuthManager` 填成员和管理员 Base32 密钥。验证配置，随后在 ClientSim 检查 UI，并用多客户端检查同步。不要把世界内密钥用于真实身份或付费权限。
+
+主菜单位于视野左侧，采用蓝色半透明控制台布局。顶部始终显示玩家名、权限、等级、经验进度及游戏时长，右侧仅有 TOTP 输入框和确认按钮。下方四个图标标签分别是传送、玩家、申请、管理；当前标签高亮，管理标签只对管理员显示。传送按钮直接移动玩家，显示该区域人数并高亮当前位置。玩家列表和详情自动刷新，无需手动刷新。申请页可处理最多 16 条同步请求，行内绿色对勾/红色叉分别为同意/拒绝；顶部短提示提醒接收者按住 Tab 处理申请，发起者收到结果提示。
+
+`Data/Default/DefaultLocationDatabase.asset` 是重新生成核心时的初始点种子；修改它不会更新已经放入场景的实例。`Data/Localization/DefaultLocalization.asset` 仅包含中文界面文本。旧版本世界中的英语名称字段仍可用于数据迁移，但界面只显示中文。
+
+## 核心层级
+
+| 子节点 | 职责 | 常用配置 |
 | --- | --- | --- |
-| 正式世界 | 一个 `BH2VSQ_BASE_Core.prefab` 实例；VRChat 的场景描述符、出生点与实际建筑 | 核心实例是唯一的 BASE 系统入口。已有世界 UI 可保留，但场景只能有一个有效 `EventSystem`。 |
-| 新增房间或楼层 | 在核心实例的 `Teleport` 子节点下增加 `BH2VSQ_TeleportPoint.prefab`，或复制现有点 | 每个点代表一个位置；无需添加 `FloorController` 或修改脚本。 |
-| 仅调试 | 打开 `Scenes/BH2VSQ_BASE_Demo.unity`，使用其中的核心实例 | 初始点在直线上，地面只是占位。不要将该演示布局直接当成成品世界。 |
-| 独立定制 UI/管理器 | 按需使用下面的零件预制体 | 零件在导出时会清除指向核心外部对象的引用；必须在 Inspector 中重新连接依赖。 |
+| `Core` | 玩家登记、经验/时长持久化、每 0.75 秒检测本地位置 | 位置检测依赖每个点的区域碰撞体。 |
+| `Authentication` | TOTP 本地会话与游客/成员/管理员等级 | 密钥仅在场景实例设置。 |
+| `Floor` | 楼层状态、区域人数、电台值守 | 楼层 ID 和权限在点上配置。 |
+| `Teleport` | 位置点、直接传送和传送申请 | 调整点、触发器和申请超时。 |
+| `Admin` | 管理员权限与楼层状态 | 由管理标签操作。 |
+| `UI` | 顶部资料卡、标签页、请求提示 | 保留主菜单上的交互画布组件；请求短提示画布不接收点击。 |
 
-## 正式世界的配置顺序
+## 每个预制体
 
-1. 导入资源包。若场景尚无 VRChat 世界描述符和出生点，先按 VRChat Worlds SDK 要求添加。打开原有场景，拖入 **一个** 核心预制体实例；不要把演示场景中的第二套核心也保留下来。核心已带 `EventSystem`，若原场景已有一个，请只保留一个有效实例。
-2. 展开核心的 `UI/MainCanvas`。菜单默认隐藏；桌面模式按 **Tab** 打开或关闭。蓝色半透明画布打开时位于视野左侧。选中核心根节点，在 Inspector 的 `BaseWorldSystem.menuOpacity` 设置整体不透明度（0 到 1），下次运行时生效。要给 VR 玩家提供入口，可在世界里的交互按钮上调用核心 `BaseWorldSystem.ToggleMenu` 公共事件。主菜单、广播弹窗和传送请求画布均须保留 `Canvas`、`VRC_UIShape`、`BoxCollider`、`GraphicRaycaster`；画布使用 Default 图层。不要把其他实体碰撞体放在菜单与玩家视线之间。
-3. 在核心的 `Teleport` 子节点下移动初始 `Point_*` 到建筑中对应房间。点物体的 Transform（或它的 `destination`）是传送落点；调整其子物体 `AreaTrigger` 的 BoxCollider，使它覆盖实际入口或区域。演示点位只是占位。
-4. 如需新增位置，复制 `BH2VSQ_TeleportPoint.prefab` 到同一 `Teleport` 子节点。设置唯一 `locationId`、中英文位置名、`floorId`、中英文楼层名、`requiredRank`、`tabVisible`、`xpMultiplier` 和目的地。新楼层直接使用新的 `floorId`；同一楼层的点须使用一致名称。只保留一个 `isSafeFallback`，且它应为游客可到达的安全位置。需要电台值守统计时，将对应点标为 `radioDutyArea`。
-5. 在 **场景实例** 的 `Authentication/TOTPAuthManager` 设置不同的成员和管理员 Base32 密钥；空值会禁用对应登录。不要将带真实密钥的场景或预制体提交到公共仓库。上传的 VRChat 世界仍会向客户端暴露世界内密钥，不能将它用于真实身份或付费权限。
-6. 根据需要调整 `Teleport/TeleportRequestManager.timeoutSeconds`（默认 15 秒）以及 `Admin/BroadcastManager` 的广播时长（普通 8 秒、重要 20 秒、紧急 120 秒）。其余核心引用由生成器连接，通常无需手动改动。
-7. 选中核心实例并运行 **BH2VSQ BASE → 验证配置**。先在 ClientSim 中检查 Tab、三页菜单、中文切换、按钮、传送和弹窗，再用至少两个 VRChat 客户端验证所有权、同步、权限及广播。
+以下“单独使用”说明适用于定制开发。导出时会清除零件指向核心外部对象的引用，必须按 Inspector 字段重新连接；通常应直接修改完整核心实例。
 
-`Data/Default/DefaultLocationDatabase.asset` 仅是重新生成核心时使用的初始位置种子。修改它不会更新已经放入场景的核心实例。`Data/Localization/DefaultLocalization.asset` 是重新生成界面时使用的中英文文本种子。
-
-## 核心层级与职责
-
-| 核心子节点 | 主要职责 | 常用配置 |
+| 预制体 | 用途 | 单独使用时的关键连接 |
 | --- | --- | --- |
-| `Core` | 玩家登记、持久化经验/偏好、当前位置、经验计时、本地化 | 检查引用；经验每 30 秒按当前位置倍率累计。 |
-| `Authentication` | 本地 TOTP 会话与游客/成员/管理员等级 | 仅在场景实例设置世界专用密钥。 |
-| `Floor` | 从位置点汇总楼层、检查通行权限、统计人数与电台值守 | 楼层 ID/名称与权限在 `TeleportPoint` 上配置；状态由管理员界面更改。 |
-| `Teleport` | 位置点扫描、移动玩家、双向传送请求 | 移动点、设置区域触发器和请求超时。 |
-| `Admin` | 管理员授权、楼层状态与广播 | 设置广播时长；运行时由管理员操作。 |
-| `UI` | Tab 菜单、玩家列表、通知与传送请求 | 保留交互画布组件和 EventSystem；不需要复制其他 UI 零件。 |
+| `Core/BH2VSQ_BASE_Core.prefab` | 完整系统，含所有管理器、UI 和初始点 | 正式场景只放一个，配置点位、密钥、出生点及 EventSystem。 |
+| `Demo/BH2VSQ_DemoBase.prefab` | 演示核心副本 | 只用于检查；不要与正式核心并存。 |
+| `Teleport/BH2VSQ_TeleportPoint.prefab` | 一个传送目的地和区域 | 放在核心 `Teleport` 下，设置 ID、中文名称、楼层、等级、目的地与碰撞体。 |
+| `Floor/BH2VSQ_AreaTrigger.prefab` | 进入区域时记录位置；可选无权限自动传回 | 放在对应点下，保持 `BoxCollider.isTrigger`，连接 `point`、`tracker`、`access`、`teleport`、`world`；点预制体已自带一个。 |
+| `Floor/BH2VSQ_FloorController.prefab` | 按点汇总楼层及状态 | 连接 `TeleportManager`，不要与原有实例并存。 |
+| `Floor/BH2VSQ_AreaController.prefab` | 位置名称与经验倍率查询 | 连接 `TeleportManager`。 |
+| `UI/BH2VSQ_TabMenu.prefab` | 顶部资料卡及四个标签页 | 放入带 `VRCUiShape`、`BoxCollider`、`GraphicRaycaster` 的 World Space Canvas，连接页、权限、按钮与高亮图标。 |
+| `UI/BH2VSQ_PersonalInfo.prefab` | 顶部玩家资料与经验条 | 连接玩家数据、权限和中文文本；完整核心中始终显示于菜单顶部。 |
+| `UI/BH2VSQ_PermissionLogin.prefab` | 六位 TOTP 输入和确认按钮 | 连接 `TOTPAuthManager`、菜单和请求提示服务。 |
+| `UI/BH2VSQ_Teleport.prefab` | 直接传送、人数及当前位置高亮 | 连接 `TeleportManager`、`PlayerAreaTracker`、`AreaPopulationManager`。 |
+| `UI/BH2VSQ_PlayerList.prefab` | 自动更新的玩家列表和右侧详情 | 连接登记、位置、玩家数据、详情及中文文本。 |
+| `UI/BH2VSQ_PlayerListItem.prefab` | 玩家列表的行按钮 | 由玩家列表复用，`UIButtonAction` 连接详情并设置玩家 ID。 |
+| `UI/BH2VSQ_PlayerDetail.prefab` | 选中玩家的位置、等级及两个申请按钮 | 连接玩家登记、位置与 `TeleportRequestManager`。 |
+| `UI/BH2VSQ_TeleportRequest.prefab` | 申请列表页面 | 与 `RequestPanel`、请求管理器和申请按钮池连接；完整核心已接好。 |
+| `UI/BH2VSQ_RequestService.prefab` | 收件提示与申请列表控制器 | 连接申请页、区域信息、管理器和独立的短提示画布。 |
+| `UI/BH2VSQ_AdminPanel.prefab` | 楼层状态和区域人数控制台 | 连接管理员、楼层、区域人数及电台组件。 |
+| `UI/BH2VSQ_FloorAdmin.prefab` | 开放/包场/维护状态操作区 | 通过 `FloorAdminManager` 修改楼层状态。 |
 
-## 每个预制体的用途
+## 故障排查与升级
 
-下面的“单独使用”说明适用于改造现有核心或开发自定义界面。零件不能代替完整核心；拖入后需手动连接其组件 Inspector 字段。
-
-### Core 与 Demo
-
-| 预制体 | 用途 | 使用方法 |
-| --- | --- | --- |
-| `Core/BH2VSQ_BASE_Core.prefab` | 完整系统，包含所有管理器、界面和初始点 | 正式场景放入一个实例；按上文配置点位、密钥、出生点及现有 EventSystem 冲突。 |
-| `Demo/BH2VSQ_DemoBase.prefab` | 与生成时核心相同的演示副本 | 仅供检查布局/测试。不要与 Core 同时放入正式场景。 |
-
-### Teleport 与 Floor
-
-| 预制体 | 用途 | 单独使用时的连接与配置 |
-| --- | --- | --- |
-| `Teleport/BH2VSQ_TeleportPoint.prefab` | 一个可传送的位置，附可视标记与 `AreaTrigger` | 放在核心 `Teleport` 子节点下，设置唯一位置 ID、楼层 ID/名称、等级、目的地与触发范围。复制后取消多余的 `isSafeFallback`。运行时扫描子节点，无需改数据库。 |
-| `Floor/BH2VSQ_AreaTrigger.prefab` | 玩家进入区域时更新当前位置，阻止无权进入 | 放在某个 `TeleportPoint` 下，保留 `BoxCollider.isTrigger`，调整位置与尺寸；`point` 指向父点，`tracker`、`access`、`teleport` 指向核心管理器。新点预制体已自带触发器，不要重复添加。 |
-| `Floor/BH2VSQ_FloorController.prefab` | `FloorManager` 模板，按点汇总楼层并处理状态 | 核心已包含。自定义替换时连接 `teleport`；不要与原有 FloorManager 并存。 |
-| `Floor/BH2VSQ_AreaController.prefab` | `AreaManager` 模板，按点提供位置名称和倍率查询 | 核心已包含。自定义替换时连接 `teleport`；不要与原有 AreaManager 并存。 |
-
-### UI
-
-| 预制体 | 用途 | 单独使用时的连接与配置 |
-| --- | --- | --- |
-| `UI/BH2VSQ_TabMenu.prefab` | 主菜单容器及全部页签/子面板 | 必须放进可交互的 World Space Canvas，连接 `permission`、各页对象和按钮的目标管理器。完整核心中已生成并连接；单独拖入不会自动组成系统。 |
-| `UI/BH2VSQ_PersonalInfo.prefab` | 显示等级、经验、时长、位置及偏好 | 连接 `PlayerDataManager`、`PermissionManager`、`PlayerAreaTracker`、楼层/位置及本地化管理器。 |
-| `UI/BH2VSQ_PermissionLogin.prefab` | 成员/管理员六位 TOTP 输入和反馈 | 连接 `TOTPAuthManager` 与主菜单；实际密钥在场景实例的认证组件上填写。 |
-| `UI/BH2VSQ_Teleport.prefab` | 可分页的位置按钮与传送确认 | 连接 `TeleportManager`、玩家偏好和本地化；按钮从 `TeleportPoint.tabVisible` 自动生成。 |
-| `UI/BH2VSQ_PlayerList.prefab` | 玩家列表、刷新与右侧详情区 | 连接登记、位置、电台、玩家数据、详情及本地化组件。 |
-| `UI/BH2VSQ_PlayerListItem.prefab` | 玩家列表的一条按钮模板 | 由玩家列表复用；其 `UIButtonAction` 应连到详情组件并设置玩家 ID。不要单独放入场景。 |
-| `UI/BH2VSQ_PlayerDetail.prefab` | 选中玩家的等级/位置详情与传送请求按钮 | 连接玩家登记、位置、楼层、本地化及 `TeleportRequestManager`。 |
-| `UI/BH2VSQ_AdminPanel.prefab` | 管理员主页，含楼层选择、人数和广播入口 | 连接管理员、楼层状态、位置人数、电台、广播与本地化组件；仅管理员可使用。 |
-| `UI/BH2VSQ_FloorAdmin.prefab` | 楼层状态选择按钮区 | 是 AdminPanel 的子面板；通过 `FloorAdminManager` 设置开放/包场/维护状态。 |
-| `UI/BH2VSQ_BroadcastPanel.prefab` | 管理员编辑、选择优先级并发送广播 | 连接 `BroadcastManager` 与本地化；不要在场景中另放一套广播管理器。 |
-| `UI/BH2VSQ_BroadcastNotificationManager.prefab` | 本地广播通知队列和传送请求弹窗容器 | 连接玩家偏好、本地化、广播/请求管理器与三种提示音；弹窗画布只在显示时开启，防止遮挡菜单点击。核心已包含。 |
-| `UI/BH2VSQ_BroadcastNotification.prefab` | 单条广播的标题、消息、发送者和关闭按钮 | 是通知容器内的显示模板；需要由 `BroadcastNotificationManager` 控制，不应独立使用。 |
-| `UI/BH2VSQ_TeleportRequest.prefab` | 传送请求提示、倒计时、接受和拒绝按钮 | 是通知容器内的模板；连接 `RequestPanel` 与 `TeleportRequestManager`。 |
-
-## 交互故障排查
-
-- **菜单偏到画面右下或被裁切**：使用新版生成的核心；确认 `MainCanvas` 的 RectTransform 轴心为中心，保留 `LocalCanvasFollower`，不要把旧版场景实例当成已更新资源。重新放置核心实例前先保存自己的点位和密钥。
-- **Tab 无反应**：确认核心的 `BaseWorldSystem` 已启用，`menuCanvas` 与 `menuFollower` 引用不为空，并确保游戏窗口有焦点。菜单在场景编辑状态下默认隐藏，进入模拟模式后按 Tab 开关。
-- **能看到按钮但点不动**：画布本体必须有 `VRC_UIShape`、`BoxCollider`、`GraphicRaycaster`，图层为 Default；场景有且只有一个有效 `EventSystem`。Button 的 Image 必须可被射线命中，`UIButtonAction.Click` 的 Udon 事件必须已连接。检查前方是否有其他碰撞体遮挡。
-- **点开零件预制体不工作**：零件导出时清除核心外部引用。优先从完整核心开始修改；独立使用时按上表把引用逐项连回核心，并运行验证器。
-- **中文仍显示英文**：先在个人页切换语言；确认本地化数据已随最新版核心重新生成。用户的语言偏好会持久化。
+- **按住 Tab 无显示**：检查核心 `BaseWorldSystem`、`menuCanvas`、`menuFollower` 引用及游戏窗口焦点。松开 Tab 后菜单消失是预期行为。
+- **按钮无法点击**：主菜单 Canvas 需要 `VRCUiShape`、`BoxCollider`、`GraphicRaycaster`，位于 Default 图层；场景仅留一个有效 `EventSystem`，并检查玩家与菜单之间有无实体碰撞体遮挡。
+- **位置一直未知或人数不更新**：把对应点的区域碰撞体扩展至玩家实际行走的位置，检查碰撞体已启用及点的 ID 唯一。打开菜单后每秒刷新显示。
+- **旧场景仍看到个人页或旧提示**：重新导入新版资源包不会自动改动已放入其他场景的旧实例。先记录旧点位、触发器和密钥，再替换为新版核心并重新配置。
+- **单独零件没有反应**：零件没有自动连接完整核心；按上表接回引用后运行 **BH2VSQ BASE → 验证配置**。

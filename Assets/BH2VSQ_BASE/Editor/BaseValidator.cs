@@ -44,11 +44,11 @@ namespace BH2VSQ.Base.Editor
             TOTPAuthManager auth = root.GetComponentInChildren<TOTPAuthManager>(true);
             PermissionManager permission = root.GetComponentInChildren<PermissionManager>(true);
             TeleportManager teleport = root.GetComponentInChildren<TeleportManager>(true);
-            BroadcastManager broadcast = root.GetComponentInChildren<BroadcastManager>(true);
             TabMenuController menu = root.GetComponentInChildren<TabMenuController>(true);
             TeleportPanel panel = root.GetComponentInChildren<TeleportPanel>(true);
             AdminPanel admin = root.GetComponentInChildren<AdminPanel>(true);
-            BroadcastNotificationManager notification = root.GetComponentInChildren<BroadcastNotificationManager>(true);
+            RequestPanel requestPanel = root.GetComponentInChildren<RequestPanel>(true);
+            TeleportRequestManager requests = root.GetComponentInChildren<TeleportRequestManager>(true);
             LocalizationManager localization = root.GetComponentInChildren<LocalizationManager>(true);
             if (world == null || world.registry == null || world.playerData == null || world.tracker == null || world.session == null || world.access == null || world.teleport == null)
                 errors.Add("核心管理器引用不完整。");
@@ -76,34 +76,44 @@ namespace BH2VSQ.Base.Editor
                 foreach (TeleportPoint point in points)
                 {
                     if (!ids.Add(point.locationId)) errors.Add("地点 ID 重复：" + point.locationId);
-                    if (string.IsNullOrWhiteSpace(point.locationName) || string.IsNullOrWhiteSpace(point.chineseName)) errors.Add("地点缺少中英文名称：" + point.name);
-                    if (string.IsNullOrWhiteSpace(point.floorName) || string.IsNullOrWhiteSpace(point.chineseFloorName)) errors.Add("楼层缺少中英文名称：" + point.name);
+                    if (string.IsNullOrWhiteSpace(point.chineseName)) errors.Add("地点缺少中文名称：" + point.name);
+                    if (string.IsNullOrWhiteSpace(point.chineseFloorName)) errors.Add("楼层缺少中文名称：" + point.name);
                     if (point.requiredRank < BaseRank.Visitor || point.requiredRank > BaseRank.Admin) errors.Add("权限等级无效：" + point.name);
                     if (point.xpMultiplier <= 0) errors.Add("经验倍率必须大于零：" + point.name);
-                    if (point.isSafeFallback) safeCount++;
+                    if (point.isSafeFallback)
+                    {
+                        safeCount++;
+                        if (world != null && world.returnUnauthorizedPlayersToSafePoint && point.requiredRank != BaseRank.Visitor)
+                            errors.Add("自动回退的安全点必须允许游客进入：" + point.name);
+                    }
                     string previous;
                     if (floorNames.TryGetValue(point.floorId, out previous) && previous != point.floorName)
                         warnings.Add("同一楼层 ID 使用了不同名称：" + point.floorId);
                     else floorNames[point.floorId] = point.floorName;
                     AreaTrigger trigger = point.GetComponentInChildren<AreaTrigger>(true);
-                    if (trigger == null || trigger.point != point) errors.Add("传送点缺少已连接的区域触发器：" + point.name);
+                    if (trigger == null || (trigger.point != null && trigger.point != point) || (trigger.world != null && trigger.world != world)) errors.Add("传送点缺少已连接的区域触发器：" + point.name);
                     else
                     {
                         BoxCollider collider = trigger.GetComponent<BoxCollider>();
                         if (collider == null || !collider.isTrigger) errors.Add("区域触发器的 BoxCollider 未设为 Trigger：" + point.name);
                     }
                 }
-                if (safeCount != 1) errors.Add("必须且只能有一个安全回退传送点，当前数量：" + safeCount);
+                if (safeCount > 1 || (world != null && world.returnUnauthorizedPlayersToSafePoint && safeCount != 1)) errors.Add("自动回退开启时必须且只能有一个安全传送点，当前数量：" + safeCount);
                 if (teleport.points == null || teleport.points.Length != points.Length)
                     warnings.Add("传送点序列化数组与层级不一致；运行时会自动扫描 Teleport 根节点。");
             }
-            if (localization == null || localization.english == null || localization.chinese == null || localization.english.Length != BaseText.EntryCount || localization.chinese.Length != BaseText.EntryCount)
-                errors.Add("中英文翻译表长度不正确，请重新生成默认数据与预制件。");
-            if (menu == null || menu.personal == null || menu.teleport == null || menu.players == null || menu.admin == null) errors.Add("主菜单结构不完整。");
+            if (localization == null || localization.chinese == null || localization.chinese.Length != BaseText.EntryCount)
+                errors.Add("中文文本表长度不正确，请重新生成默认数据与预制件。");
+            if (menu == null || menu.header == null || menu.teleport == null || menu.players == null || menu.requests == null || menu.admin == null) errors.Add("主菜单结构不完整。");
+            if (menu != null && (menu.tabBackgrounds == null || menu.tabBackgrounds.Length != 4 || menu.tabIndicators == null || menu.tabIndicators.Length != 4))
+                errors.Add("四个标签的当前页高亮组件不完整。");
             if (world != null && (world.menuCanvas == null || world.menuFollower == null || world.menuCanvasGroup == null || world.menuCanvas.GetComponent<Canvas>() == null))
                 errors.Add("Tab 菜单画布或头部定位组件未连接。");
+            if (world != null && world.menuCanvas != null && EditorUtility.IsPersistent(root) && world.menuCanvas.activeSelf)
+                errors.Add("核心预制体中的 Tab 菜单应默认隐藏。");
             foreach (Canvas canvas in root.GetComponentsInChildren<Canvas>(true))
             {
+                if (canvas.name == "RequestNoticeCanvas") continue;
                 if (canvas.GetComponent<VRCUiShape>() == null || canvas.GetComponent<BoxCollider>() == null || canvas.GetComponent<GraphicRaycaster>() == null)
                     errors.Add("交互画布缺少 VRC_UIShape、BoxCollider 或 GraphicRaycaster：" + canvas.name);
                 if (canvas.gameObject.layer == 5) errors.Add("交互画布不能使用 UI 图层：" + canvas.name);
@@ -114,14 +124,19 @@ namespace BH2VSQ.Base.Editor
                 if (button == null || button.onClick.GetPersistentEventCount() == 0 || button.onClick.GetPersistentTarget(0) == null || button.onClick.GetPersistentMethodName(0) != "SendCustomEvent")
                     errors.Add("按钮未连接到 Udon Click 事件：" + action.name);
             }
-            if (!EditorUtility.IsPersistent(root) && UnityEngine.Object.FindObjectOfType<EventSystem>() == null)
-                errors.Add("场景缺少 EventSystem，UI 按钮无法交互。");
+            if (!EditorUtility.IsPersistent(root) && UnityEngine.Object.FindObjectsOfType<EventSystem>().Length != 1)
+                errors.Add("场景需要且仅能有一个有效 EventSystem。");
             if (panel == null || panel.locationObjects == null || panel.locationActions == null || panel.locationLabels == null || panel.locationObjects.Length == 0 || panel.locationObjects.Length != panel.locationActions.Length || panel.locationObjects.Length != panel.locationLabels.Length)
                 errors.Add("地点菜单按钮池不完整。");
             if (admin == null || admin.floorObjects == null || admin.floorActions == null || admin.floorLabels == null || admin.floorObjects.Length == 0 || admin.floorObjects.Length != admin.floorActions.Length || admin.floorObjects.Length != admin.floorLabels.Length)
                 errors.Add("楼层管理按钮池不完整。");
-            if (broadcast == null || broadcast.admin == null || broadcast.notification == null || notification == null || notification.root == null) errors.Add("广播组件引用不完整。");
-            if (root.GetComponentInChildren<TeleportRequestManager>(true) == null || root.GetComponentInChildren<RequestPanel>(true) == null) errors.Add("传送请求组件不完整。");
+            if (requests == null || requestPanel == null || requests.panel != requestPanel || requestPanel.noticeRoot == null || requestPanel.rowObjects == null || requestPanel.rowObjects.Length == 0 ||
+                requestPanel.acceptActions == null || requestPanel.rejectActions == null || requestPanel.requesterTexts == null || requestPanel.locationTexts == null ||
+                requestPanel.acceptActions.Length != requestPanel.rowObjects.Length || requestPanel.rejectActions.Length != requestPanel.rowObjects.Length ||
+                requestPanel.requesterTexts.Length != requestPanel.rowObjects.Length || requestPanel.locationTexts.Length != requestPanel.rowObjects.Length)
+                errors.Add("传送请求列表、结果提示或引用不完整。");
+            if (requests != null && (requests.requestIds == null || requests.requestIds.Length != TeleportRequestManager.Capacity)) errors.Add("传送请求同步槽数量不正确。");
+            if (world != null && (world.tracker == null || world.tracker.teleport != teleport || world.tracker.world != world)) errors.Add("自动位置检测未连接。");
             if (root.GetComponentInChildren<LocalCanvasFollower>(true) == null) errors.Add("本地界面跟随组件缺失。");
         }
     }

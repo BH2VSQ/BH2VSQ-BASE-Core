@@ -279,6 +279,7 @@ MonoBehaviour:
   access: {fileID: 0}
   teleport: {fileID: 0}
   point: {fileID: 2105735760808250177}
+  world: {fileID: 0}
 --- !u!114 &3460566547872637635
 MonoBehaviour:
   m_ObjectHideFlags: 0

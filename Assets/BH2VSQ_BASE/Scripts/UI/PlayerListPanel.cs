@@ -42,6 +42,7 @@ namespace BH2VSQ.Base
                 rowTexts[i].text = player.displayName + " | " + localization.RankName(registry.RankForPlayer(player.playerId)) + " | " + localization.Get(BaseText.Level) + level + "\n" + floorName + " / " + areaName + (areas != null && areas.IsRadioLocation(areaId) ? " | " + localization.Get(BaseText.OnDuty) : "");
                 rowActions[i].value = player.playerId;
             }
+            if (detail != null && detail.selectedPlayerId != 0) detail.ShowPlayer(detail.selectedPlayerId);
         }
     }
 }

@@ -107,9 +107,8 @@ namespace BH2VSQ.Base.Editor
             string localizationPath = Root + "/Data/Localization/DefaultLocalization.asset";
             LocalizationDatabase translation = AssetDatabase.LoadAssetAtPath<LocalizationDatabase>(localizationPath);
             if (translation == null) { translation = ScriptableObject.CreateInstance<LocalizationDatabase>(); AssetDatabase.CreateAsset(translation, localizationPath); }
-            if (translation.english == null || translation.english.Length != BaseText.EntryCount || translation.chinese == null || translation.chinese.Length != BaseText.EntryCount)
+            if (translation.chinese == null || translation.chinese.Length != BaseText.EntryCount)
             {
-                translation.english = LocalizationDatabase.DefaultEnglish();
                 translation.chinese = LocalizationDatabase.DefaultChinese();
                 EditorUtility.SetDirty(translation);
             }
@@ -201,25 +200,21 @@ namespace BH2VSQ.Base.Editor
             TeleportRequestManager requests = Manager<TeleportRequestManager>(teleportGroup.transform, "TeleportRequestManager");
             AdminManager admin = Manager<AdminManager>(adminGroup.transform, "AdminManager");
             FloorAdminManager floorAdmin = Manager<FloorAdminManager>(adminGroup.transform, "FloorAdminManager");
-            BroadcastManager broadcast = Manager<BroadcastManager>(adminGroup.transform, "BroadcastManager");
 
             teleport.pointRoot = teleportGroup.transform;
             floors.teleport = teleport; areas.teleport = teleport;
-            tracker.areas = areas;
+            tracker.areas = areas; tracker.teleport = teleport; tracker.access = access; tracker.world = world;
             level.data = data; level.tracker = tracker; level.areas = areas;
-            localization.data = data;
             LocalizationDatabase translations = AssetDatabase.LoadAssetAtPath<LocalizationDatabase>(Root + "/Data/Localization/DefaultLocalization.asset");
-            localization.english = (string[])translations.english.Clone();
             localization.chinese = (string[])translations.chinese.Clone();
             session.registry = registry; permission.session = session; permission.registry = registry; auth.session = session;
             access.floors = floors; access.teleport = teleport; access.permission = permission;
             population.tracker = tracker; radio.population = population; radio.teleport = teleport;
             teleport.access = access;
+            teleport.tracker = tracker;
             requests.teleport = teleport;
             requests.timeoutSeconds = config.requestTimeoutSeconds;
             admin.permission = permission; floorAdmin.admin = admin; floorAdmin.floors = floors;
-            broadcast.admin = admin; broadcast.normalSeconds = config.broadcastNormalSeconds;
-            broadcast.importantSeconds = config.broadcastImportantSeconds;
             world.registry = registry; world.playerData = data; world.tracker = tracker; world.session = session;
             world.floors = floors; world.access = access; world.teleport = teleport;
 
@@ -251,11 +246,11 @@ namespace BH2VSQ.Base.Editor
                 BoxCollider collider = trigger.AddComponent<BoxCollider>();
                 collider.isTrigger = true; collider.size = new Vector3(2f, 2.5f, 2f);
                 AreaTrigger areaTrigger = trigger.AddUdonSharpComponent<AreaTrigger>();
-                areaTrigger.tracker = tracker; areaTrigger.access = access; areaTrigger.teleport = teleport; areaTrigger.point = point;
+                areaTrigger.tracker = tracker; areaTrigger.access = access; areaTrigger.teleport = teleport; areaTrigger.point = point; areaTrigger.world = world;
             }
             teleport.points = points;
 
-            BuildUI(uiGroup.transform, world, registry, data, tracker, floors, areas, permission, auth, teleport, requests, radio, population, admin, floorAdmin, broadcast, localization);
+            BuildUI(uiGroup.transform, world, registry, data, tracker, floors, areas, permission, auth, teleport, requests, radio, population, admin, floorAdmin, localization);
             return root;
         }
 

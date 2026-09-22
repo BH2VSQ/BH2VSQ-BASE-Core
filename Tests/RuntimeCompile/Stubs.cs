@@ -8,18 +8,23 @@ namespace UnityEngine
         public GameObject gameObject;
         public Transform transform;
         public T GetComponentInParent<T>() where T : Component => null;
+        public T GetComponent<T>() where T : Component => null;
+        public T GetComponentInChildren<T>(bool includeInactive) where T : Component => null;
         public T[] GetComponentsInChildren<T>(bool includeInactive) where T : Component => Array.Empty<T>();
     }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { }
     public class CanvasGroup : Behaviour { public float alpha; }
-    public class GameObject : Object { public bool activeSelf; public void SetActive(bool value) { activeSelf = value; } }
+    public class RectTransform : Transform { public Vector2 sizeDelta; }
+    public struct Vector2 { public Vector2(float x, float y) { } }
+    public class GameObject : Object { public bool activeSelf; public bool activeInHierarchy; public void SetActive(bool value) { activeSelf = value; activeInHierarchy = value; } public T GetComponent<T>() where T : Component => null; }
     public enum KeyCode { Tab }
-    public static class Input { public static bool GetKeyDown(KeyCode key) => false; }
+    public static class Input { public static bool GetKeyDown(KeyCode key) => false; public static bool GetKey(KeyCode key) => false; }
     public class Transform : Component
     {
         public Vector3 position;
         public Quaternion rotation;
+        public Vector3 InverseTransformPoint(Vector3 position) => default;
     }
     public struct Vector3
     {
@@ -27,17 +32,22 @@ namespace UnityEngine
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public static Vector3 back => new Vector3();
         public static Vector3 operator +(Vector3 a, Vector3 b) => new Vector3();
+        public static Vector3 operator -(Vector3 a, Vector3 b) => new Vector3();
+        public static Vector3 operator *(Vector3 a, float b) => new Vector3();
     }
     public struct Quaternion
     {
         public static Vector3 operator *(Quaternion a, Vector3 b) => new Vector3();
     }
     public static class Time { public static float time; }
+    public struct Color { public Color(float r, float g, float b, float a = 1f) { } public static Color white => new Color(); }
+    public class BoxCollider : Behaviour { public Vector3 center; public Vector3 size; }
     public static class Mathf
     {
         public static float Sqrt(float value) => (float)Math.Sqrt(value);
         public static int FloorToInt(float value) => (int)Math.Floor(value);
         public static float Clamp01(float value) => Math.Clamp(value, 0, 1);
+        public static float Abs(float value) => Math.Abs(value);
     }
     public static class Debug { public static void LogError(string message) { } }
     public class AudioClip : Object { }
@@ -55,8 +65,13 @@ namespace UnityEngine
 
 namespace TMPro
 {
-    public class TMP_Text : UnityEngine.Behaviour { public string text; }
+    public class TMP_Text : UnityEngine.Behaviour { public string text; public UnityEngine.Color color; }
     public class TMP_InputField : UnityEngine.Behaviour { public string text; }
+}
+
+namespace UnityEngine.UI
+{
+    public class Image : UnityEngine.Behaviour { public UnityEngine.Color color; public float fillAmount; }
 }
 
 namespace UdonSharp
@@ -88,15 +103,21 @@ namespace VRC.SDKBase
     }
     public class VRCPlayerApi
     {
+        public static VRCPlayerApi[] TestPlayers = Array.Empty<VRCPlayerApi>();
         public int playerId;
         public bool isLocal;
         public string displayName;
+        public int teleportCount;
         public static void GetPlayers(VRCPlayerApi[] players) { }
         public static int GetPlayerCount() => 0;
-        public static VRCPlayerApi GetPlayerById(int id) => null;
+        public static VRCPlayerApi GetPlayerById(int id)
+        {
+            foreach (VRCPlayerApi player in TestPlayers) if (player.playerId == id) return player;
+            return null;
+        }
         public UnityEngine.Vector3 GetPosition() => default;
         public UnityEngine.Quaternion GetRotation() => default;
-        public void TeleportTo(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation) { }
+        public void TeleportTo(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation) { teleportCount++; }
         public void Respawn() { }
         public struct TrackingData
         {

@@ -10,16 +10,62 @@ namespace BH2VSQ.Base
         [UdonSynced] public int[] playerIds = new int[BaseConstants.MaxPlayers];
         [UdonSynced] public int[] areaIds = new int[BaseConstants.MaxPlayers];
         public AreaManager areas;
+        public TeleportManager teleport;
+        public AccessManager access;
+        public BaseWorldSystem world;
         public int localAreaId = BaseConstants.InvalidId;
         public int localFloorId = BaseConstants.InvalidId;
+
+        private void Start() { SendCustomEventDelayedSeconds("PollPosition", 1f); }
+
+        public void PollPosition()
+        {
+            VRCPlayerApi player = Networking.LocalPlayer;
+            if (Utilities.IsValid(player) && teleport != null)
+            {
+                if (teleport.points == null) teleport.RefreshPoints();
+                TeleportPoint found = null;
+                float smallestVolume = float.MaxValue;
+                Vector3 position = player.GetPosition();
+                if (teleport.points != null)
+                    for (int i = 0; i < teleport.points.Length; i++)
+                    {
+                        TeleportPoint point = teleport.points[i];
+                        if (point == null) continue;
+                        AreaTrigger trigger = point.GetComponentInChildren<AreaTrigger>(true);
+                        BoxCollider box = trigger == null ? null : trigger.GetComponent<BoxCollider>();
+                        if (box == null || !box.enabled || !box.gameObject.activeInHierarchy) continue;
+                        Vector3 local = box.transform.InverseTransformPoint(position) - box.center;
+                        Vector3 half = box.size * .5f;
+                        if (Mathf.Abs(local.x) > half.x || Mathf.Abs(local.y) > half.y || Mathf.Abs(local.z) > half.z) continue;
+                        float volume = half.x * half.y * half.z;
+                        if (volume >= smallestVolume) continue;
+                        found = point;
+                        smallestVolume = volume;
+                    }
+                if (found == null) RecordArea(BaseConstants.InvalidId, BaseConstants.InvalidId);
+                else if (world != null && world.returnUnauthorizedPlayersToSafePoint && access != null && access.CheckPointAccess(found) != AccessResult.Allowed)
+                {
+                    if (localAreaId != found.locationId) teleport.ToSafeFloor();
+                }
+                else EnterArea(found.locationId);
+            }
+            SendCustomEventDelayedSeconds("PollPosition", .75f);
+        }
 
         public void EnterArea(int areaId)
         {
             if (areas == null || !Utilities.IsValid(Networking.LocalPlayer)) return;
             int area = areas.IndexOf(areaId);
             if (area < 0) return;
+            RecordArea(areaId, areas.FloorIdAt(area));
+        }
+
+        private void RecordArea(int areaId, int floorId)
+        {
+            if (!Utilities.IsValid(Networking.LocalPlayer) || localAreaId == areaId) return;
             localAreaId = areaId;
-            localFloorId = areas.FloorIdAt(area);
+            localFloorId = floorId;
             int id = Networking.LocalPlayer.playerId;
             int slot = -1;
             for (int i = 0; i < playerIds.Length; i++)

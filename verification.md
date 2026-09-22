@@ -4,17 +4,19 @@
 
 | 检查 | 结果 |
 | --- | --- |
-| Unity 2022.3.22f1 批量构建 | 通过，进程退出码 0；UdonSharp 编译、核心与组件预制体、默认数据、示例场景和 Unity 资源包生成成功 |
-| 配置验证器 | 通过；提示 TOTP 密钥为空，符合公开仓库默认配置 |
-| C# 语法检查 | 43 个项目 C# 文件，0 个语法或类名错误 |
-| 运行时代码类型检查 | 0 个警告、0 个错误；使用本地 Unity/VRChat/Udon API 桩，不替代 UdonSharp 编译 |
-| TOTP 向量 | RFC 6238 的 6 个 SHA-1 向量、Base32 解码和成员登录通过 |
-| 导出资源包清单 | 包含核心预制体、示例场景、TextMesh Pro 必需资源及已编译的 SerializedUdonPrograms |
-| Tab 菜单与交互预制体静态检查 | 验证器通过：核心菜单引用、3 个 Canvas 的 VRCUiShape/BoxCollider/GraphicRaycaster、按钮 Udon 点击事件及 EventSystem 存在；核心预制体中 MainCanvas 默认关闭、左侧定位偏移为 -0.5 米、CanvasGroup alpha 为 0.86 |
-| 新版导出清单 | 245 个路径条目，包含 19 个预制体及更新后的 INSTALL.md/PREFABS.md；SHA-256 为 `93C524C995CE136C3AB4121DE756107552F5A45E38D47812AE7F2019C04A650D` |
+| Unity 2022.3.22f1 批量构建 | `tools/Build-Package.ps1` 退出码 0；UdonSharp 编译、预制体生成、示例场景和资源包导出成功 |
+| 静态配置验证 | 通过；检查四个标签高亮引用、顶部资料卡、交互画布、按钮 Udon 点击事件、请求列表、区域检测和默认隐藏菜单。TOTP 密钥为空，符合公开仓库默认配置 |
+| C# 语法 | 39 个项目 C# 文件，0 个语法/文件名错误 |
+| 运行时代码桩编译 | 0 个警告、0 个错误；此检查不替代 UdonSharp 编译 |
+| 请求流程测试 | 申请列表行映射、同意/拒绝结果、同意后传送、重复申请拦截、同时保存多个申请均通过 |
+| TOTP 测试 | RFC 6238 六个 SHA-1 向量、Base32 解码及成员登录通过 |
+| UI 渲染检查 | 用 Unity 临时渲染并人工检查传送页与申请页：顶部资料卡、右侧输入、区域人数、当前点高亮、标签图标高亮、申请行和绿/红操作按钮布局清楚；临时脚本未打包 |
+| 资源包清单 | 231 个路径条目、17 个预制体；无旧广播、公告、英语切换或临时预览脚本资源 |
 
-构建命令：`tools/Build-Package.ps1`。产物：`Releases/BH2VSQ_BASE_Core.unitypackage`。该文件按仓库规则不提交到 Git，可在本机直接导入。构建日志 `unity-build.log` 中有 UdonSharp/Odin 在预制体序列化时及 Unity SceneTemplate 在保存示例场景时的非致命 `ArgumentNullException`；构建继续并成功导出资源包，验证器通过。尚需在客户端确认序列化结果的实际交互行为。
+正式资源包：`Releases/BH2VSQ_BASE_Core.unitypackage`。SHA-256：`8B6ABAF59EBAAD7CB1C76799D1F2B6943504399797B944E46EE04DEE869C2895`。文件按仓库规则不提交到 Git，将作为 Release 附件发布。
+
+Unity 日志中仍有 UdonSharp/Odin 在预制体序列化及 SceneTemplate 保存时的非致命 `ArgumentNullException`。构建继续完成、配置验证通过，导出的预制体内容和引用已检查；实际客户端行为仍需验证。
 
 ## 尚未覆盖
 
-未在 VRChat 客户端或 ClientSim 中执行交互验证，也未运行双客户端网络测试。楼层状态、共享玩家与区域数组、单槽传送请求、广播队列及所有权竞争必须在实际世界中验证。Udon 中的 TOTP 不能保护真实密钥或付费权限，详见[安全边界](Assets/BH2VSQ_BASE/Documentation/SECURITY.md)。
+未在 ClientSim 或 VRChat 客户端实际按键点击，也未完成双客户端同步压力测试。尤其需要在世界中检查 Tab 按住/松开、TOTP 输入、区域碰撞体覆盖、并发申请及所有权竞争。共享同步数组的并发写入仍可能覆盖其他客户端的更新。Udon 内的 TOTP 不能保护真实密钥或付费权限，详见[安全边界](Assets/BH2VSQ_BASE/Documentation/SECURITY.md)。
