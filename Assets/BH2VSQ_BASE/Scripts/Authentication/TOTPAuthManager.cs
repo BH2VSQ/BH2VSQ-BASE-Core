@@ -5,7 +5,7 @@ using VRC.SDKBase;
 namespace BH2VSQ.Base
 {
     // RFC 6238 / HMAC-SHA1.
-    // Note: TOTP secrets embedded in an uploaded world are not private.
+    // Secrets embedded in an uploaded VRChat world are not private.
     public class TOTPAuthManager : UdonSharpBehaviour
     {
         [SerializeField] private string memberTotpSecret = "";
@@ -14,51 +14,99 @@ namespace BH2VSQ.Base
         public AuthenticationSession session;
         public int lastResult;
 
+        // 0 = failed, 1 = member, 2 = admin, 3 = already admin.
         public bool Authenticate(string code)
         {
             lastResult = 0;
 
             if (session == null)
+            {
+                Debug.LogError("[TOTP] AuthenticationSession reference is missing.");
                 return false;
+            }
 
             if (code == null || code.Length != 6)
                 return false;
 
-            // Only allow a 6-digit numeric code.
             for (int i = 0; i < 6; i++)
             {
                 if (code[i] < '0' || code[i] > '9')
                     return false;
             }
 
-            // Already admin.
-            if (session.rank == BaseRank.Admin)
+            BaseRank currentRank = session.rank;
+            Debug.Log("[TOTP] Current rank before authentication: " + currentRank);
+
+            if (currentRank == BaseRank.Admin)
             {
                 lastResult = 3;
+                Debug.Log("[TOTP] Player is already Admin.");
                 return false;
             }
 
-            // 30-second TOTP period.
             long step =
                 (Networking.GetNetworkDateTime().Ticks - 621355968000000000L)
                 / 300000000L;
 
-            // Check admin first.
+            // Admin has priority over Member.
             if (Match(adminTotpSecret, code, step))
             {
-                session.Authenticate(BaseRank.Admin);
+                Debug.Log("[TOTP] Admin TOTP matched. Applying Admin rank...");
+
+                // Apply the rank directly in this same UdonBehaviour execution path.
+                // This avoids relying on a cross-Udon method call for the critical
+                // local rank mutation.
+                session.rank = BaseRank.Admin;
+                session.authenticatedTicks =
+                    Networking.GetNetworkDateTime().Ticks;
+
+                if (session.registry != null)
+                    session.registry.PublishRank(BaseRank.Admin);
+
+                // Do not report success until the shared session actually changed.
+                if (session.rank != BaseRank.Admin)
+                {
+                    Debug.LogError(
+                        "[TOTP] TOTP matched, but AuthenticationSession.rank did not become Admin. " +
+                        "Check that TOTPAuthManager.session is the live AuthenticationSession used by the permission system."
+                    );
+                    lastResult = 0;
+                    return false;
+                }
+
                 lastResult = 2;
+                Debug.Log("[TOTP] Admin authentication complete. Current rank: " + session.rank);
                 return true;
             }
 
-            // Then check member.
             if (Match(memberTotpSecret, code, step))
             {
-                session.Authenticate(BaseRank.Member);
+                Debug.Log("[TOTP] Member TOTP matched. Applying Member rank...");
+
+                // Apply Member rank directly for the same reason as Admin.
+                session.rank = BaseRank.Member;
+                session.authenticatedTicks =
+                    Networking.GetNetworkDateTime().Ticks;
+
+                if (session.registry != null)
+                    session.registry.PublishRank(BaseRank.Member);
+
+                if (session.rank != BaseRank.Member)
+                {
+                    Debug.LogError(
+                        "[TOTP] TOTP matched, but AuthenticationSession.rank did not become Member. " +
+                        "Check that TOTPAuthManager.session is the live AuthenticationSession used by the permission system."
+                    );
+                    lastResult = 0;
+                    return false;
+                }
+
                 lastResult = 1;
+                Debug.Log("[TOTP] Member authentication complete. Current rank: " + session.rank);
                 return true;
             }
 
+            Debug.Log("[TOTP] TOTP code did not match.");
             return false;
         }
 
@@ -72,7 +120,6 @@ namespace BH2VSQ.Base
             if (key.Length == 0)
                 return false;
 
-            // Allow one 30-second step of clock skew in either direction.
             for (long offset = -1L; offset <= 1L; offset++)
             {
                 if (Compute(key, step + offset) == code)
@@ -101,17 +148,11 @@ namespace BH2VSQ.Base
                 int n;
 
                 if (c >= 'A' && c <= 'Z')
-                {
                     n = c - 'A';
-                }
                 else if (c >= '2' && c <= '7')
-                {
                     n = c - '2' + 26;
-                }
                 else
-                {
                     return new byte[0];
-                }
 
                 buffer = (buffer << 5) | n;
                 bits += 5;
@@ -119,19 +160,12 @@ namespace BH2VSQ.Base
                 if (bits >= 8)
                 {
                     bits -= 8;
-
-                    // Exactly 8 useful bits remain after the shift.
-                    // Therefore this conversion is already in the byte range.
                     bytes[index++] = (byte)(buffer >> bits);
 
                     if (bits == 0)
-                    {
                         buffer = 0;
-                    }
                     else
-                    {
                         buffer &= (1 << bits) - 1;
-                    }
                 }
             }
 
@@ -143,43 +177,31 @@ namespace BH2VSQ.Base
             byte[] inner = new byte[72];
             byte[] outer = new byte[84];
 
-            // HMAC-SHA1 keys longer than the block size are hashed first.
             if (key.Length > 64)
                 key = Sha1(key);
 
-            // HMAC inner/outer pads.
             for (int i = 0; i < 64; i++)
             {
                 byte k = i < key.Length ? key[i] : (byte)0;
-
                 inner[i] = (byte)(k ^ 0x36);
                 outer[i] = (byte)(k ^ 0x5C);
             }
 
-            // TOTP/HOTP moving factor:
-            // encode the 64-bit counter as big-endian bytes.
-            //
-            // IMPORTANT:
-            // UdonSharp checks numeric narrowing conversions.
-            // Masking to 8 bits before converting long -> byte
-            // prevents the OverflowException seen in the original code.
+            // Encode the 64-bit TOTP counter as big-endian bytes.
+            // Mask to the low 8 bits before converting to byte because Udon
+            // checks numeric narrowing conversions for overflow.
             for (int i = 0; i < 8; i++)
             {
-                inner[64 + i] =
-                    LongLowByte(step >> (56 - i * 8));
+                inner[64 + i] = LongLowByte(step >> (56 - i * 8));
             }
 
-            // HMAC inner hash.
             byte[] digest = Sha1(inner);
 
-            // Add inner hash to outer input.
             for (int i = 0; i < 20; i++)
                 outer[64 + i] = digest[i];
 
-            // HMAC outer hash.
             digest = Sha1(outer);
 
-            // RFC 4226 dynamic truncation.
             int offset = digest[19] & 15;
 
             int number =
@@ -188,7 +210,6 @@ namespace BH2VSQ.Base
                 (digest[offset + 2] << 8) |
                 digest[offset + 3];
 
-            // 6-digit TOTP.
             string digits = (number % 1000000).ToString();
 
             while (digits.Length < 6)
@@ -197,14 +218,11 @@ namespace BH2VSQ.Base
             return digits;
         }
 
-        // UdonSharp performs checked numeric casts.
-        // Masking first guarantees that the long value is 0..255.
         private byte LongLowByte(long value)
         {
             return (byte)(value & 255L);
         }
 
-        // Same idea for uint -> byte.
         private byte UIntLowByte(uint value)
         {
             return (byte)(value & 255u);
@@ -212,11 +230,7 @@ namespace BH2VSQ.Base
 
         private byte[] Sha1(byte[] data)
         {
-            // SHA-1 padding:
-            // original data + 0x80 + zero padding + 64-bit bit length.
-            int padded =
-                ((data.Length + 9 + 63) / 64) * 64;
-
+            int padded = ((data.Length + 9 + 63) / 64) * 64;
             byte[] input = new byte[padded];
 
             for (int i = 0; i < data.Length; i++)
@@ -226,19 +240,12 @@ namespace BH2VSQ.Base
 
             long bitLength = (long)data.Length * 8L;
 
-            // Write the 64-bit big-endian bit length.
-            //
-            // The original implementation did:
-            // (byte)(bitLength >> ...)
-            //
-            // That is another potential Udon overflow.
             for (int i = 0; i < 8; i++)
             {
                 input[padded - 8 + i] =
                     LongLowByte(bitLength >> (56 - i * 8));
             }
 
-            // SHA-1 initial state.
             uint h0 = 0x67452301u;
             uint h1 = 0xEFCDAB89u;
             uint h2 = 0x98BADCFEu;
@@ -247,10 +254,8 @@ namespace BH2VSQ.Base
 
             uint[] w = new uint[80];
 
-            // Process every 512-bit block.
             for (int block = 0; block < padded; block += 64)
             {
-                // First 16 words.
                 for (int i = 0; i < 16; i++)
                 {
                     int p = block + i * 4;
@@ -262,7 +267,6 @@ namespace BH2VSQ.Base
                         input[p + 3];
                 }
 
-                // Extend to 80 words.
                 for (int i = 16; i < 80; i++)
                 {
                     uint x =
@@ -271,9 +275,7 @@ namespace BH2VSQ.Base
                         w[i - 14] ^
                         w[i - 16];
 
-                    w[i] =
-                        (x << 1) |
-                        (x >> 31);
+                    w[i] = (x << 1) | (x >> 31);
                 }
 
                 uint a = h0;
@@ -282,7 +284,6 @@ namespace BH2VSQ.Base
                 uint d = h3;
                 uint e = h4;
 
-                // Main SHA-1 compression loop.
                 for (int i = 0; i < 80; i++)
                 {
                     uint f;
@@ -323,7 +324,6 @@ namespace BH2VSQ.Base
                     a = next;
                 }
 
-                // SHA-1 state accumulation.
                 h0 += a;
                 h1 += b;
                 h2 += c;
@@ -331,9 +331,7 @@ namespace BH2VSQ.Base
                 h4 += e;
             }
 
-            // Store the final five 32-bit words.
             uint[] hashes = new uint[5];
-
             hashes[0] = h0;
             hashes[1] = h1;
             hashes[2] = h2;
@@ -342,23 +340,12 @@ namespace BH2VSQ.Base
 
             byte[] result = new byte[20];
 
-            // Convert SHA-1 words to big-endian bytes.
-            //
-            // Original code:
-            // (byte)(hashes[i] >> ...)
-            //
-            // This can overflow in Udon because the shifted uint
-            // is not necessarily <= 255.
-            //
-            // Mask first so the final conversion is always safe.
             for (int i = 0; i < 5; i++)
             {
                 for (int j = 0; j < 4; j++)
                 {
                     result[i * 4 + j] =
-                        UIntLowByte(
-                            hashes[i] >> (24 - 8 * j)
-                        );
+                        UIntLowByte(hashes[i] >> (24 - 8 * j));
                 }
             }
 
