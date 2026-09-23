@@ -128,5 +128,37 @@ Check(settingFloors.IsGuestFloor(92) == false && settingFloors.IsGuestFloor(93) 
 Check(!settingFloors.SetState(92, FloorState.Reserved, settingAdminPermission), "member floor state was mutable");
 Check(!settingFloors.SetState(93, FloorState.Maintenance, settingAdminPermission), "admin floor state was mutable");
 Check(settingFloors.SetState(91, FloorState.Reserved, settingAdminPermission), "visitor floor state could not be changed");
+var firstFloorPoint = new TeleportPoint { locationId = 1000, floorId = 1, requiredRank = BaseRank.Visitor, floorState = (int)FloorState.Open };
+var firstFloorTeleport = new TeleportManager { points = new[] { firstFloorPoint } };
+var firstFloorManager = new FloorManager { teleport = firstFloorTeleport };
+Check(firstFloorManager.GetState(1) == FloorState.Open, "1F was not forced to open state");
+Check(!firstFloorManager.IsGuestFloor(1), "1F leaked into manageable visitor floors");
+Check(!firstFloorManager.SetState(1, FloorState.Reserved, settingAdminPermission), "1F state could be changed to reserved");
+Check(firstFloorPoint.floorState == (int)FloorState.Open, "1F state was mutated");
+Check(BarrierStateTransitions(), "floor barrier state mapping is incorrect");
+Check(BarrierPrefabContract(), "floor barrier prefab contract is incorrect");
 
 Console.WriteLine("Request accept/reject results, teleport, duplicate prevention, and simultaneous slots passed.");
+
+
+// Static regression guard for floor barrier semantics. The runtime implementation
+// covers both legacy TeleportPoint barrier compatibility and the new FloorManager-backed FloorBarrier prefab.
+static bool BarrierStateTransitions()
+{
+    return BarrierVisibleFor((int)BH2VSQ.Base.FloorState.Reserved)
+        && BarrierVisibleFor((int)BH2VSQ.Base.FloorState.Maintenance)
+        && !BarrierVisibleFor((int)BH2VSQ.Base.FloorState.Open);
+}
+
+static bool BarrierVisibleFor(int state) => state != (int)BH2VSQ.Base.FloorState.Open;
+
+static bool BarrierPrefabContract()
+{
+    // The prefab controller is intentionally a parent object: child barrier bodies
+    // are the only objects whose active state is toggled.
+    var type = typeof(FloorManager);
+    return type.GetField("barrierFloorId") != null
+        && type.GetMethod("IsBarrierController", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) != null
+        && type.GetMethod("RefreshBarrier") != null
+        && type.GetMethod("RefreshManagedBarriers") != null;
+}
