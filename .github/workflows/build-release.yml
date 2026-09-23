@@ -97,23 +97,26 @@ jobs:
           versioning: None
           allowDirtyBuild: true
 
-      - name: Verify package and write checksum
+      - name: Stage package and write checksum
         shell: bash
         run: |
           test -s "Releases/$PACKAGE_FILE"
+          rm -rf dist
+          mkdir -p dist
+          cp "Releases/$PACKAGE_FILE" "dist/$PACKAGE_FILE"
           (
-            cd Releases
+            cd dist
             sha256sum "$PACKAGE_FILE" > SHA256SUMS.txt
           )
-          cat Releases/SHA256SUMS.txt
+          test -s "dist/$PACKAGE_FILE"
+          test -s "dist/SHA256SUMS.txt"
+          cat dist/SHA256SUMS.txt
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: BH2VSQ_BASE_Core-${{ github.run_id }}
-          path: |
-            Releases/BH2VSQ_BASE_Core.unitypackage
-            Releases/SHA256SUMS.txt
+          path: dist/
           if-no-files-found: error
           retention-days: 30
 
@@ -133,7 +136,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: BH2VSQ_BASE_Core-${{ github.run_id }}
-          path: Releases
+          path: dist
 
       - name: Resolve release tag
         id: release
@@ -166,14 +169,14 @@ jobs:
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" \
-              Releases/BH2VSQ_BASE_Core.unitypackage \
-              Releases/SHA256SUMS.txt \
+              dist/BH2VSQ_BASE_Core.unitypackage \
+              dist/SHA256SUMS.txt \
               --clobber \
               --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$RELEASE_TAG" \
-              Releases/BH2VSQ_BASE_Core.unitypackage \
-              Releases/SHA256SUMS.txt \
+              dist/BH2VSQ_BASE_Core.unitypackage \
+              dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_TAG" \
               --generate-notes \
