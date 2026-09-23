@@ -25,11 +25,59 @@ namespace BH2VSQ.Base
 
         public bool SetState(int floorId, FloorState state, PermissionManager permission)
         {
-            if (!Valid(floorId) || permission == null || !permission.IsAdmin() || teleport.points == null) return false;
+            if (!IsGuestFloor(floorId) || permission == null || !permission.IsAdmin() || teleport.points == null) return false;
             for (int i = 0; i < teleport.points.Length; i++)
                 if (teleport.points[i] != null && teleport.points[i].floorId == floorId)
                     teleport.points[i].SetFloorState(state);
             return true;
+        }
+
+        public bool IsGuestFloor(int floorId)
+        {
+            if (teleport == null || teleport.points == null) return false;
+            bool found = false;
+            for (int i = 0; i < teleport.points.Length; i++)
+            {
+                TeleportPoint point = teleport.points[i];
+                if (point == null || point.floorId != floorId) continue;
+                found = true;
+                if (point.requiredRank != BaseRank.Visitor) return false;
+            }
+            return found;
+        }
+
+        public int ManageableFloorCount()
+        {
+            if (teleport == null || teleport.points == null) return 0;
+            int count = 0;
+            for (int i = 0; i < teleport.points.Length; i++)
+            {
+                TeleportPoint point = teleport.points[i];
+                if (point == null || !IsGuestFloor(point.floorId)) continue;
+                bool seen = false;
+                for (int j = 0; j < i; j++)
+                    if (teleport.points[j] != null && teleport.points[j].floorId == point.floorId) { seen = true; break; }
+                if (!seen) count++;
+            }
+            return count;
+        }
+
+        public int ManageableFloorIdAt(int index)
+        {
+            if (teleport == null || teleport.points == null) return BaseConstants.InvalidId;
+            int position = 0;
+            for (int i = 0; i < teleport.points.Length; i++)
+            {
+                TeleportPoint point = teleport.points[i];
+                if (point == null || !IsGuestFloor(point.floorId)) continue;
+                bool seen = false;
+                for (int j = 0; j < i; j++)
+                    if (teleport.points[j] != null && teleport.points[j].floorId == point.floorId) { seen = true; break; }
+                if (seen) continue;
+                if (position == index) return point.floorId;
+                position++;
+            }
+            return BaseConstants.InvalidId;
         }
 
         public int UniqueFloorCount()
